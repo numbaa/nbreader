@@ -7,14 +7,39 @@
         x:Class="NBReader.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
+		ExtendClientAreaToDecorationsHint="True"
         Title="NBReader">
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
+	<Design.DataContext>
+		<!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
-    </Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+	<Panel Name="RootPanel">
+		<ScrollViewer HorizontalScrollBarVisibility="Visible">
+			<StackPanel Orientation="Horizontal" Height="{Binding $parent.Bounds.Height}">
+				<Image Margin="0,20,0,20"
+					   VerticalAlignment="Stretch"
+					   Source="D:/video/Manga-Zip.info_0004.jpg"/>
+				<Image Margin="0,20,0,20"
+					   VerticalAlignment="Stretch"
+					   Source="D:/video/Manga-Zip.info_0005.jpg" />
+				<Image Margin="0,20,0,20"
+					   VerticalAlignment="Stretch"
+					   Source="D:/video/Manga-Zip.info_0005.jpg" />
+				<Image Margin="0,20,0,20"
+					   VerticalAlignment="Stretch"
+					   Source="D:/video/Manga-Zip.info_0005.jpg" />
+			</StackPanel>
+		</ScrollViewer>
+		<Panel Margin="20">
+			<Button HorizontalAlignment="Right" VerticalAlignment="Top"
+					Command="{Binding SelectZipFileCommand}">
+				<PathIcon Data="{StaticResource folder_zip_regular}" />
+			</Button>
+			<TextBlock Text="{Binding MangaFolder}" />
+		</Panel>
+	</Panel>
 
 </Window>
