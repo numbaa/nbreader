@@ -13,7 +13,7 @@ namespace NBReader
             if (data is null)
                 return null;
 
-            var name = data.GetType().FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
+            var name = data.GetType().FullName!.Replace("ViewModel", "View");
             var type = Type.GetType(name);
 
             if (type != null)

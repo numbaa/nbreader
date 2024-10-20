@@ -1,11 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net481</TargetFrameworks>
     <Nullable>enable</Nullable>
+    <LangVersion>8.0</LangVersion>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net481'">
+    <NoWarn>$(NoWarn);nullable</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

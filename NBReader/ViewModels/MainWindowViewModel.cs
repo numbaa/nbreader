@@ -1,12 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NBReader.Core;
-using SharpCompress;
 using SharpCompress.Readers;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Input;
 
 namespace NBReader.ViewModels
 {
@@ -14,6 +14,10 @@ namespace NBReader.ViewModels
     {
         [ObservableProperty]
         private string? _MangaFolder;
+
+        [ObservableProperty]
+        private List<string>? _MangaFiles;
+
         public Interaction<string, string?> SelectZipFileInteraction { get; } = new Interaction<string, string?>();
         public MainWindowViewModel()
         {
@@ -26,20 +30,33 @@ namespace NBReader.ViewModels
             string? fullpath = await SelectZipFileInteraction.HandleAsync("选择zip漫画");
             string? zipFilepath = fullpath?.Replace("file:///", "");
             System.Diagnostics.Debug.WriteLine($"SelectedFile: {zipFilepath}");
+            if (zipFilepath == null)
+            {
+                return;
+            }
             try
             {
-                using (Stream stream = File.OpenRead(zipFilepath ?? ""))
-                using (var reader = ReaderFactory.Open(stream))
+                var guid = Guid.NewGuid().ToString();
+                var tempFolder = Path.GetTempPath();
+                var targetFoler = tempFolder + "NBReader/" + guid;
+                await Task.Run(() =>
                 {
-                    Directory.CreateDirectory("./extract");
-                    reader.WriteAllToDirectory("./extract", new SharpCompress.Common.ExtractionOptions()
+                    using (Stream stream = File.OpenRead(zipFilepath ?? ""))
+                    using (var reader = ReaderFactory.Open(stream))
                     {
-                        ExtractFullPath = true,
-                        PreserveFileTime = true,
-                        PreserveAttributes = true,
-                    });
-                    MangaFolder = zipFilepath;
-                }
+
+                        Directory.CreateDirectory(targetFoler);
+                        reader.WriteAllToDirectory(targetFoler, new SharpCompress.Common.ExtractionOptions()
+                        {
+                            ExtractFullPath = true,
+                            PreserveFileTime = true,
+                            PreserveAttributes = true,
+                        });
+                        MangaFolder = targetFoler;
+                        MangaFiles = Directory.GetFiles(targetFoler).ToList();
+                    }
+                });
+
             }
             catch(Exception ex)
             {

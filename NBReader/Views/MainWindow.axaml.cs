@@ -32,7 +32,7 @@ namespace NBReader.Views
                     AllowMultiple = false,
                     Title = input,
                 });
-            if (file is not null && file.Count > 0)
+            if (file != null && file.Count > 0)
             {
                 return file[0].Path.ToString();
             }

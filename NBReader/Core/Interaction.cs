@@ -21,7 +21,7 @@ namespace NBReader.Core
         }
         public IDisposable RegisterHandler(Func<TInput, Task<TOutput>> handler)
         {
-            if (_handler is not null)
+            if (_handler != null)
             {
                 throw new InvalidOperationException("Handler was already registered");
             }
@@ -37,12 +37,12 @@ namespace NBReader.Core
 
         public bool CanExecute(object? parameter)
         {
-            return _handler is not null;
+            return _handler != null;
         }
 
         public void Execute(object? parameter)
         {
-            HandleAsync((TInput?)parameter!);
+            HandleAsync((TInput)parameter!);
         }
         public event EventHandler? CanExecuteChanged;
     }
