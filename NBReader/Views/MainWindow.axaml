@@ -19,20 +19,18 @@
 	<Panel Name="RootPanel">
 		<ScrollViewer HorizontalScrollBarVisibility="Visible">
 			<StackPanel Orientation="Horizontal" Height="{Binding $parent.Bounds.Height}">
-				<Image Margin="0,20,0,20"
-					   VerticalAlignment="Stretch"
-					   Source="D:/video/Manga-Zip.info_0004.jpg"/>
-				<Image Margin="0,20,0,20"
-					   VerticalAlignment="Stretch"
-					   Source="D:/video/Manga-Zip.info_0005.jpg" />
-				<Image Margin="0,20,0,20"
-					   VerticalAlignment="Stretch"
-					   Source="D:/video/Manga-Zip.info_0005.jpg" />
-				<Image Margin="0,20,0,20"
-					   VerticalAlignment="Stretch"
-					   Source="D:/video/Manga-Zip.info_0005.jpg" />
+				<ItemsControl ItemsSource="{Binding MangaFiles}">
+					<ItemsControl.ItemTemplate>
+						<DataTemplate>
+						  <Image Margin="0,20,0,20"
+							   VerticalAlignment="Stretch"
+							   Source="{Binding File}" />
+						</DataTemplate>
+					</ItemsControl.ItemTemplate>
+				</ItemsControl>
 			</StackPanel>
 		</ScrollViewer>
+
 		<Panel Margin="20">
 			<Button HorizontalAlignment="Right" VerticalAlignment="Top"
 					Command="{Binding SelectZipFileCommand}">

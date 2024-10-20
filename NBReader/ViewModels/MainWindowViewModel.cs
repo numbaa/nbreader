@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NBReader.Core;
+using NBReader.Models;
 using SharpCompress.Readers;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace NBReader.ViewModels
         private string? _MangaFolder;
 
         [ObservableProperty]
-        private List<string>? _MangaFiles;
+        private List<MangaFile>? _MangaFiles;
 
         public Interaction<string, string?> SelectZipFileInteraction { get; } = new Interaction<string, string?>();
         public MainWindowViewModel()
@@ -48,12 +49,17 @@ namespace NBReader.ViewModels
                         Directory.CreateDirectory(targetFoler);
                         reader.WriteAllToDirectory(targetFoler, new SharpCompress.Common.ExtractionOptions()
                         {
-                            ExtractFullPath = true,
-                            PreserveFileTime = true,
-                            PreserveAttributes = true,
+                            //ExtractFullPath = true,
+                            //PreserveFileTime = true,
+                            //PreserveAttributes = true,
                         });
                         MangaFolder = targetFoler;
-                        MangaFiles = Directory.GetFiles(targetFoler).ToList();
+                        var mangaFiles = new List<MangaFile>();
+                        foreach (var file in Directory.GetFiles(targetFoler))
+                        {
+                            mangaFiles.Add(new MangaFile(file.Replace('\\', '/')));
+                        }
+                        MangaFiles = mangaFiles;
                     }
                 });
 
