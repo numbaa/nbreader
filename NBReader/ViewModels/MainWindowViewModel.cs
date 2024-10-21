@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using Avalonia.Media.Imaging;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NBReader.Core;
 using NBReader.Models;
@@ -7,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace NBReader.ViewModels
@@ -29,7 +31,13 @@ namespace NBReader.ViewModels
         private async Task SelectZipFileAsync()
         {
             string? fullpath = await SelectZipFileInteraction.HandleAsync("选择zip漫画");
-            string? zipFilepath = fullpath?.Replace("file:///", "");
+            string? zipFilepath;
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+            if (isWindows) {
+                zipFilepath = fullpath?.Replace("file:///", "");
+            } else {
+                zipFilepath = fullpath?.Replace("file://", "");
+            }
             System.Diagnostics.Debug.WriteLine($"SelectedFile: {zipFilepath}");
             if (zipFilepath == null)
             {
@@ -57,7 +65,10 @@ namespace NBReader.ViewModels
                         var mangaFiles = new List<MangaFile>();
                         foreach (var file in Directory.GetFiles(targetFoler))
                         {
-                            mangaFiles.Add(new MangaFile(file.Replace('\\', '/')));
+                            var filePath = file.Replace('\\', '/');
+                            var fileStream = File.OpenRead(filePath);
+                            var bitmap = Bitmap.DecodeToWidth(fileStream, 600);
+                            mangaFiles.Add(new MangaFile(filePath, bitmap));
                         }
                         MangaFiles = mangaFiles;
                     }

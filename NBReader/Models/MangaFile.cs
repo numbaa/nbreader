@@ -3,16 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 
 namespace NBReader.Models
 {
     public class MangaFile
     {
-        public string File { get; set; }
+        public string Path { get; set; }
 
-        public MangaFile(string file)
+        public Bitmap Bitmap { get; set; }
+
+        public MangaFile(string path, Bitmap bitmap)
         {
-            this.File = file;
+            this.Path = path;
+            this.Bitmap = bitmap;
         }
     }
 }
