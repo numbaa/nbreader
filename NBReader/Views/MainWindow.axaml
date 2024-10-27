@@ -3,44 +3,13 @@
         xmlns:vm="using:NBReader.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+		xmlns:view="using:NBReader.Views"
+		WindowStartupLocation="CenterScreen"
+        mc:Ignorable="d" Width="1280" Height="720" MinWidth="720"
         x:Class="NBReader.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-		ExtendClientAreaToDecorationsHint="True"
         Title="NBReader">
 
-	<Design.DataContext>
-		<!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-		<vm:MainWindowViewModel/>
-	</Design.DataContext>
-
-	<Panel Name="RootPanel">
-		<ScrollViewer HorizontalScrollBarVisibility="Visible">
-				<ItemsControl ItemsSource="{Binding MangaFiles}">
-					<ItemsControl.ItemsPanel>
-						<ItemsPanelTemplate>
-							<StackPanel Orientation="Horizontal" Height="{Binding $parent.Bounds.Height}"/>
-						</ItemsPanelTemplate>
-					</ItemsControl.ItemsPanel>
-					<ItemsControl.ItemTemplate>
-						<DataTemplate>
-						  <Image Margin="0,20,0,20"
-							   VerticalAlignment="Stretch"
-							   Source="{Binding Bitmap}" />
-						</DataTemplate>
-					</ItemsControl.ItemTemplate>
-				</ItemsControl>
-		</ScrollViewer>
-
-		<Panel Margin="20">
-			<Button HorizontalAlignment="Right" VerticalAlignment="Top"
-					Command="{Binding SelectZipFileCommand}">
-				<PathIcon Data="{StaticResource folder_zip_regular}" />
-			</Button>
-			<!-- <TextBlock Text="{Binding MangaFolder}" /> -->
-		</Panel>
-	</Panel>
+	<view:MainView />
 
 </Window>

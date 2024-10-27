@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dialogHostAvalonia="clr-namespace:DialogHostAvalonia;assembly=DialogHost.Avalonia"
+             xmlns:avalonia="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:controls="clr-namespace:Material.Styles.Controls;assembly=Material.Styles"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="NBReader.Views.MainView">
+	<dialogHostAvalonia:DialogHost Identifier="MainDialogHost">
+		<controls:SnackbarHost HostName="Root" TemplateApplied="TemplatedControl_OnTemplateApplied">
+			<controls:NavigationDrawer Name="LeftDrawer" Classes="permanent"
+									   LeftDrawerOpened="{Binding ElementName=NavDrawerSwitch, Path=IsChecked, Mode=TwoWay}">
+				<controls:NavigationDrawer.LeftDrawerContent>
+					<ScrollViewer>
+						<StackPanel>
+							<controls:ColorZone Mode="Accent" Height="180">
+								
+							</controls:ColorZone>
+							<ListBox Classes="NoScroll" Name="DrawerList"
+									 Focusable="{Binding ElementName=LeftDrawer, Path=LeftDrawerOpened}">
+								<ListBox.Styles>
+									<Style Selector="ListBoxItem">
+										<Setter Property="Height" Value="48" />
+										<Setter Property="Padding" Value="16,0" />
+										<Setter Property="VerticalContentAlignment" Value="Center" />
+									</Style>
+								</ListBox.Styles>
+								<ListBoxItem>Home</ListBoxItem>
+							</ListBox>
+						</StackPanel>
+					</ScrollViewer>
+				</controls:NavigationDrawer.LeftDrawerContent>
+				<DockPanel LastChildFill="True">
+					<controls:ColorZone Name="ReadingZone" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+										DockPanel.Dock="Top"
+										Height="56" Mode="PrimaryMid" ZIndex="1">
+						<Grid Margin="16">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="24" />
+								<ColumnDefinition Width="32" />
+								<ColumnDefinition Width="32" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<ToggleButton Name="NavDrawerSwitch"
+										  Theme="{StaticResource MaterialFlatButton}"
+										  Width="32" Height="32" Padding="4">
+								<avalonia:MaterialIcon Kind="Menu" Width="24" Height="24" />
+							</ToggleButton>
+						</Grid>
+					</controls:ColorZone>
+					<ScrollViewer Name="mainScroller"
+								  DockPanel.Dock="Top"
+								  HorizontalContentAlignment="Stretch"
+								  HorizontalAlignment="Stretch"
+								  HorizontalScrollBarVisibility="Disabled">
+					</ScrollViewer>
+				</DockPanel>
+			</controls:NavigationDrawer>
+		</controls:SnackbarHost>
+	</dialogHostAvalonia:DialogHost>
+</UserControl>
