@@ -28,6 +28,8 @@
 									</Style>
 								</ListBox.Styles>
 								<ListBoxItem>Home</ListBoxItem>
+								<ListBoxItem>Setting</ListBoxItem>
+								<ListBoxItem>About</ListBoxItem>
 							</ListBox>
 						</StackPanel>
 					</ScrollViewer>
