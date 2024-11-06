@@ -2,7 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:avalonia="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:vm="using:NBReader.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:DataType="vm:HomeViewModel"
              x:Class="NBReader.Views.HomeView">
-  HomeView
+    <DockPanel>
+        <Button IsVisible="{Binding IsButtonVisible}"
+          Command="{Binding OpenFileDialog}">
+          <avalonia:MaterialIcon Kind="Menu" Width="24" Height="24" />
+        </Button>
+    </DockPanel>
+
 </UserControl>
