@@ -6,7 +6,9 @@
              xmlns:avalonia="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:controls="clr-namespace:Material.Styles.Controls;assembly=Material.Styles"
 			 xmlns:view="using:NBReader.Views"
+			 xmlns:vm="using:NBReader.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 x:DataType="vm:MainWindowViewModel"
              x:Class="NBReader.Views.MainView">
 	<dialogHostAvalonia:DialogHost Identifier="MainDialogHost">
 		<controls:SnackbarHost HostName="Root" TemplateApplied="TemplatedControl_OnTemplateApplied">
@@ -69,7 +71,7 @@
 										</Setter>
 									</Style>
 								</Carousel.Styles>
-								<view:HomeView />
+								<view:HomeView DataContext="{Binding HomeViewModel}"/>
 								<view:SettingView />
 								<view:AboutView />
 							</Carousel>

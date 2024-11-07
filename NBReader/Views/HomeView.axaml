@@ -9,7 +9,7 @@
              x:Class="NBReader.Views.HomeView">
     <DockPanel>
         <Button IsVisible="{Binding IsButtonVisible}"
-          Command="{Binding OpenFileDialog}">
+                Command="{Binding OpenFileDialogCommand}">
           <avalonia:MaterialIcon Kind="Menu" Width="24" Height="24" />
         </Button>
     </DockPanel>

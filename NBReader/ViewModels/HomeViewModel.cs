@@ -13,7 +13,7 @@ namespace NBReader.ViewModels
 
         public HomeViewModel()
         {
-            IsButtonVisible = false;
+            IsButtonVisible = true;
         }
 
         [RelayCommand]

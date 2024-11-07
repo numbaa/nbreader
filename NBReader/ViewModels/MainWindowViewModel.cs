@@ -21,10 +21,13 @@ namespace NBReader.ViewModels
         [ObservableProperty]
         private List<MangaFile>? _MangaFiles;
 
+        [ObservableProperty]
+        private HomeViewModel? _HomeViewModel;
+
         public Interaction<string, string?> SelectZipFileInteraction { get; } = new Interaction<string, string?>();
         public MainWindowViewModel()
         {
-            //
+            HomeViewModel = new HomeViewModel();
         }
 
         [RelayCommand]
