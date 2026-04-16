@@ -523,7 +523,7 @@ void scanPath(path) {
 
 如果你下一步要继续推进，我建议优先补两份文档：
 
-1. `数据库实体与字段设计`
-2. `导入流程与错误处理状态机`
+1. [database-entities-and-fields.md](docs/database-entities-and-fields.md)
+2. [import-flow-and-error-state-machine.md](docs/import-flow-and-error-state-machine.md)
 
 这两份一旦定稳，后面的 UI 和代码结构都会清晰很多。
