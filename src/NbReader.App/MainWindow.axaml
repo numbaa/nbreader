@@ -98,6 +98,18 @@
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding NextMilestone}"
                                TextWrapping="Wrap" />
+                    <TextBlock Text="运行时状态"
+                               Margin="0,8,0,0"
+                               FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding RuntimeChecks}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StringFormat='• {}'}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <TextBlock Text="{Binding EnvironmentSummary}"
                                TextWrapping="Wrap"
                                Foreground="#92400E" />
