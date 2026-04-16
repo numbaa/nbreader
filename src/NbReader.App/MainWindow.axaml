@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="using:NbReader.App.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="NbReader.App.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
+        MinWidth="960"
+        MinHeight="640"
+        Width="1280"
+        Height="800"
+        Title="NbReader">
+    <Grid ColumnDefinitions="240,*" RowDefinitions="Auto,*,Auto">
+        <Border Grid.RowSpan="3"
+                Background="#111827"
+                Padding="20">
+            <StackPanel Spacing="18">
+                <TextBlock Text="NbReader"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="#F9FAFB" />
+                <TextBlock Text="Phase 0 骨架"
+                           FontSize="13"
+                           Foreground="#93C5FD" />
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="模块"
+                               FontWeight="SemiBold"
+                               Foreground="#E5E7EB" />
+                    <ItemsControl ItemsSource="{Binding Modules}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1F2937"
+                                        CornerRadius="8"
+                                        Padding="10"
+                                        Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding}"
+                                               Foreground="#E5E7EB" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1"
+                Padding="24,20"
+                BorderBrush="#E5E7EB"
+                BorderThickness="0,0,0,1">
+            <StackPanel Spacing="10">
+                <TextBlock Text="{Binding Title}"
+                           FontSize="28"
+                           FontWeight="Bold" />
+                <TextBlock Text="{Binding Subtitle}"
+                           FontSize="15"
+                           Foreground="#4B5563"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Column="1"
+              Grid.Row="1"
+              ColumnDefinitions="2*,*"
+              Margin="24">
+            <Border Background="#F8FAFC"
+                    BorderBrush="#CBD5E1"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="20"
+                    Margin="0,0,16,0">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="当前实现范围"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding CurrentGoals}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StringFormat='• {}'}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,10" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Background="#FFFBEB"
+                    BorderBrush="#F59E0B"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="下一个里程碑"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding NextMilestone}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding EnvironmentSummary}"
+                               TextWrapping="Wrap"
+                               Foreground="#92400E" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Column="1"
+                Grid.Row="2"
+                Background="#F8FAFC"
+                BorderBrush="#E5E7EB"
+                BorderThickness="0,1,0,0"
+                Padding="24,14">
+            <TextBlock Text="{Binding Footer}"
+                       Foreground="#475569" />
+        </Border>
+    </Grid>
+</Window>
