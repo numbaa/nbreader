@@ -20,6 +20,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _isLoadingVolumes;
     private long _selectedSeriesIdForDetail;
     private Bitmap? _readerPreviewImage;
+    private VolumeReaderContext? _activeReaderContext;
+    private ReaderState _readerState = ReaderState.Empty;
+    private readonly Dictionary<int, Bitmap> _pageBitmapCache = [];
+    private readonly NearbyPageWindowPolicy _preloadPolicy = new(radius: 1);
     private readonly UnifiedVolumePageSource _pageSource = new();
 
     public MainWindowViewModel(AppRuntime runtime)
@@ -33,7 +37,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "书架与阅读闭环 - M2（系列详情与卷打开）";
+    public string Subtitle => "书架与阅读闭环 - M3（单页阅读与基础预加载）";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [
@@ -189,12 +193,28 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 return;
             }
 
-            var old = _readerPreviewImage;
             _readerPreviewImage = value;
             OnPropertyChanged();
-            old?.Dispose();
         }
     }
+
+    public string ReaderPageIndicator => _readerState.TotalPages == 0
+        ? "0 / 0"
+        : $"{_readerState.CurrentPageNumber} / {_readerState.TotalPages}";
+
+    public bool CanGoToPreviousPage => _readerState.CanMovePrevious;
+
+    public bool CanGoToNextPage => _readerState.CanMoveNext;
+
+    public string ReaderStateLabel => _readerState.Lifecycle switch
+    {
+        ReaderLifecycle.Idle => "Idle",
+        ReaderLifecycle.VolumeReady => "VolumeReady",
+        ReaderLifecycle.PageLoading => "PageLoading",
+        ReaderLifecycle.PageReady => "PageReady",
+        ReaderLifecycle.Error => "Error",
+        _ => "Unknown",
+    };
 
     public string StatusMessage
     {
@@ -283,19 +303,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
-        using var stream = _pageSource.OpenPageStream(context.SourcePath, context.PageLocators[0]);
-        if (stream is null)
+        ClearReaderSession();
+        _activeReaderContext = context;
+        SetReaderState(ReaderStateMachine.OpenVolume(context.VolumeId, context.VolumeTitle, context.SourcePath, context.PageLocators));
+
+        if (!NavigateToPage(0))
         {
             StatusMessage = "打开卷失败：无法读取第一页。";
             return;
         }
 
-        ReaderPreviewImage = new Bitmap(stream);
-
-        ReaderLaunchSummary =
-            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {context.PageLocators.Count} 页，当前显示第 1 页。";
         NavigateTo("Reader");
         SelectedNavigation = "Reader";
+    }
+
+    public void ShowPreviousPage()
+    {
+        if (!CanGoToPreviousPage)
+        {
+            return;
+        }
+
+        NavigateToPage(_readerState.CurrentPageIndex - 1);
+    }
+
+    public void ShowNextPage()
+    {
+        if (!CanGoToNextPage)
+        {
+            return;
+        }
+
+        NavigateToPage(_readerState.CurrentPageIndex + 1);
     }
 
     private async Task LoadVolumesForSelectedSeriesAsync(long seriesId, CancellationToken cancellationToken = default)
@@ -335,6 +374,135 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             IsLoadingVolumes = false;
         }
+    }
+
+    private bool NavigateToPage(int targetPageIndex)
+    {
+        if (_activeReaderContext is null)
+        {
+            return false;
+        }
+
+        var loadingState = ReaderStateMachine.NavigateTo(_readerState, targetPageIndex);
+        SetReaderState(loadingState);
+
+        if (!TryGetOrLoadPageBitmap(loadingState.CurrentPageIndex, out var bitmap))
+        {
+            SetReaderState(ReaderStateMachine.MarkError(loadingState, "读取页面失败"));
+            StatusMessage = "读取页面失败，请确认资源可访问。";
+            return false;
+        }
+
+        ReaderPreviewImage = bitmap;
+        SetReaderState(ReaderStateMachine.MarkPageReady(loadingState));
+        UpdateReaderLaunchSummary();
+        PreloadAndReleaseAroundCurrentPage();
+
+        if (_readerState.TotalPages > 0)
+        {
+            StatusMessage = $"阅读中：第 {_readerState.CurrentPageNumber} / {_readerState.TotalPages} 页。";
+        }
+
+        return true;
+    }
+
+    private bool TryGetOrLoadPageBitmap(int pageIndex, out Bitmap bitmap)
+    {
+        bitmap = null!;
+
+        if (_pageBitmapCache.TryGetValue(pageIndex, out var cached))
+        {
+            bitmap = cached;
+            return true;
+        }
+
+        if (_activeReaderContext is null || pageIndex < 0 || pageIndex >= _activeReaderContext.PageLocators.Count)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = _pageSource.OpenPageStream(_activeReaderContext.SourcePath, _activeReaderContext.PageLocators[pageIndex]);
+            if (stream is null)
+            {
+                return false;
+            }
+
+            bitmap = new Bitmap(stream);
+            _pageBitmapCache[pageIndex] = bitmap;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void PreloadAndReleaseAroundCurrentPage()
+    {
+        if (_activeReaderContext is null || _readerState.TotalPages == 0)
+        {
+            return;
+        }
+
+        var keepIndices = _preloadPolicy.GetWindowIndices(_readerState.CurrentPageIndex, _readerState.TotalPages);
+
+        foreach (var index in keepIndices)
+        {
+            if (!_pageBitmapCache.ContainsKey(index))
+            {
+                TryGetOrLoadPageBitmap(index, out _);
+            }
+        }
+
+        var staleIndices = _pageBitmapCache.Keys
+            .Where(index => !keepIndices.Contains(index))
+            .ToArray();
+
+        foreach (var index in staleIndices)
+        {
+            if (_pageBitmapCache.TryGetValue(index, out var bitmap))
+            {
+                _pageBitmapCache.Remove(index);
+                bitmap.Dispose();
+            }
+        }
+    }
+
+    private void ClearReaderSession()
+    {
+        ReaderPreviewImage = null;
+
+        foreach (var bitmap in _pageBitmapCache.Values)
+        {
+            bitmap.Dispose();
+        }
+
+        _pageBitmapCache.Clear();
+        _activeReaderContext = null;
+        SetReaderState(ReaderState.Empty);
+        ReaderLaunchSummary = "尚未打开卷。";
+    }
+
+    private void SetReaderState(ReaderState state)
+    {
+        _readerState = state;
+        OnPropertyChanged(nameof(ReaderStateLabel));
+        OnPropertyChanged(nameof(ReaderPageIndicator));
+        OnPropertyChanged(nameof(CanGoToPreviousPage));
+        OnPropertyChanged(nameof(CanGoToNextPage));
+    }
+
+    private void UpdateReaderLaunchSummary()
+    {
+        if (SelectedSeries is null || SelectedVolume is null || _readerState.TotalPages == 0)
+        {
+            return;
+        }
+
+        ReaderLaunchSummary =
+            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {_readerState.TotalPages} 页，当前显示第 {_readerState.CurrentPageNumber} 页。";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

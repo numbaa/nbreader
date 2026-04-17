@@ -181,12 +181,27 @@
                     CornerRadius="12"
                     Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Reader 入口（M2 占位）"
+                    <TextBlock Text="Reader 单页阅读（M3）"
                                FontSize="20"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding ReaderLaunchSummary}"
                                TextWrapping="Wrap"
                                Foreground="#334155" />
+                    <StackPanel Orientation="Horizontal"
+                        Spacing="12">
+                    <TextBlock Text="{Binding ReaderPageIndicator, StringFormat='页码：{0}'}"
+                           Foreground="#334155"
+                           VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ReaderStateLabel, StringFormat='状态：{0}'}"
+                           Foreground="#475569"
+                           VerticalAlignment="Center" />
+                    <Button Content="上一页"
+                        IsEnabled="{Binding CanGoToPreviousPage}"
+                        Click="OnReaderPreviousPageClick" />
+                    <Button Content="下一页"
+                        IsEnabled="{Binding CanGoToNextPage}"
+                        Click="OnReaderNextPageClick" />
+                    </StackPanel>
                     <Border Height="520"
                             Background="#0B1220"
                             CornerRadius="8"
@@ -194,7 +209,7 @@
                         <Image Source="{Binding ReaderPreviewImage}"
                                Stretch="Uniform" />
                     </Border>
-                    <TextBlock Text="下一步将接入统一页源与阅读状态。"
+                    <TextBlock Text="基础预加载策略：保留当前页及邻近 1 页。"
                                Foreground="#64748B" />
                 </StackPanel>
             </Border>

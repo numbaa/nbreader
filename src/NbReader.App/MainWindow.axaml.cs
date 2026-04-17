@@ -57,4 +57,14 @@ public partial class MainWindow : Window
             _viewModel.Runtime.Logger.Error("Failed to open selected volume.", ex);
         }
     }
+
+    private void OnReaderPreviousPageClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.ShowPreviousPage();
+    }
+
+    private void OnReaderNextPageClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.ShowNextPage();
+    }
 }

@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段概览
 
-- 当前里程碑：M3 准备中
+- 当前里程碑：M4 准备中
 - 总体状态：doing
 - 最近更新：2026-04-18
 
@@ -28,9 +28,9 @@
 
 ### M3：单页阅读、ReaderState 与基础预加载
 
-- [ ] 实现单页阅读基础能力（2026-04-18）
-- [ ] 定义 ReaderState 与状态迁移（2026-04-18）
-- [ ] 实现邻近页预加载与释放策略（2026-04-18）
+- [x] 实现单页阅读基础能力（2026-04-18）
+- [x] 定义 ReaderState 与状态迁移（2026-04-18）
+- [x] 实现邻近页预加载与释放策略（2026-04-18）
 
 ### M4：双页模式、方向切换与配对规则
 
@@ -86,11 +86,20 @@
 - 验证结果：`dotnet build NbReader.sln -c Debug` 通过（0 warning）；`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（23/23）。
 - 发现问题：暂无阻塞；下一步进入 M3（单页阅读、ReaderState、基础预加载）。
 
+### 2026-04-18（第 5 次）
+
+- 完成项：实现 ReaderState（`ReaderLifecycle + ReaderStateMachine`）并接入阅读状态迁移（VolumeReady -> PageLoading -> PageReady / Error）。
+- 完成项：Reader 区域升级为单页阅读交互，支持上一页/下一页、页码与状态展示。
+- 完成项：实现邻近页预加载窗口（半径 1）与缓存释放策略，避免缓存无限增长。
+- 完成项：新增 `ReaderStateMachineTests`，覆盖状态迁移与预加载窗口策略。
+- 验证结果：`dotnet build NbReader.sln -c Debug` 通过（0 warning）；`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（27/27）。
+- 发现问题：暂无阻塞；下一步进入 M4（双页模式、方向切换与配对规则）。
+
 ## 6. 下一步
 
-1. 进入 M3，先实现单页阅读状态（上一页/下一页/页码）。
-2. 定义 ReaderState 并固化状态迁移规则。
-3. 接入基础预加载窗口与释放策略。
+1. 进入 M4，实现双页模式与模式切换。
+2. 实现阅读方向切换与页索引映射。
+3. 固化封面单页与双页配对规则，并补齐对应测试。
 
 ## 7. 风险与阻塞
 
