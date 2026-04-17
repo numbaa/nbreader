@@ -10,6 +10,8 @@ namespace NbReader.App.ViewModels;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
+    private const bool CoverSinglePageInDualMode = true;
+
     private string _currentSection = "Catalog";
     private string _selectedNavigation = "Catalog";
     private string _statusMessage = "正在加载系列列表...";
@@ -20,8 +22,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _isLoadingVolumes;
     private long _selectedSeriesIdForDetail;
     private Bitmap? _readerPreviewImage;
+    private Bitmap? _readerLeftPageImage;
+    private Bitmap? _readerRightPageImage;
     private VolumeReaderContext? _activeReaderContext;
     private ReaderState _readerState = ReaderState.Empty;
+    private ReaderDisplayMode _readerDisplayMode = ReaderDisplayMode.SinglePage;
+    private ReaderReadingDirection _readingDirection = ReaderReadingDirection.LeftToRight;
     private readonly Dictionary<int, Bitmap> _pageBitmapCache = [];
     private readonly NearbyPageWindowPolicy _preloadPolicy = new(radius: 1);
     private readonly UnifiedVolumePageSource _pageSource = new();
@@ -37,7 +43,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "书架与阅读闭环 - M3（单页阅读与基础预加载）";
+    public string Subtitle => "书架与阅读闭环 - M4（双页模式、方向切换与配对规则）";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [
@@ -198,13 +204,81 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string ReaderPageIndicator => _readerState.TotalPages == 0
-        ? "0 / 0"
-        : $"{_readerState.CurrentPageNumber} / {_readerState.TotalPages}";
+    public Bitmap? ReaderLeftPageImage
+    {
+        get => _readerLeftPageImage;
+        private set
+        {
+            if (ReferenceEquals(_readerLeftPageImage, value))
+            {
+                return;
+            }
 
-    public bool CanGoToPreviousPage => _readerState.CanMovePrevious;
+            _readerLeftPageImage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasReaderLeftPageImage));
+        }
+    }
 
-    public bool CanGoToNextPage => _readerState.CanMoveNext;
+    public Bitmap? ReaderRightPageImage
+    {
+        get => _readerRightPageImage;
+        private set
+        {
+            if (ReferenceEquals(_readerRightPageImage, value))
+            {
+                return;
+            }
+
+            _readerRightPageImage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasReaderRightPageImage));
+        }
+    }
+
+    public bool HasReaderLeftPageImage => ReaderLeftPageImage is not null;
+
+    public bool HasReaderRightPageImage => ReaderRightPageImage is not null;
+
+    public bool IsSinglePageMode => _readerDisplayMode == ReaderDisplayMode.SinglePage;
+
+    public bool IsDualPageMode => _readerDisplayMode == ReaderDisplayMode.DualPage;
+
+    public string ReaderDisplayModeLabel => IsSinglePageMode ? "单页" : "双页";
+
+    public string ReaderDirectionLabel => _readingDirection == ReaderReadingDirection.LeftToRight ? "从左到右" : "从右到左";
+
+    public string ReaderPageIndicator
+    {
+        get
+        {
+            if (_readerState.TotalPages == 0)
+            {
+                return "0 / 0";
+            }
+
+            var spread = ReaderSpreadRules.BuildSpread(
+                _readerState.CurrentPageIndex,
+                _readerState.TotalPages,
+                _readerDisplayMode,
+                _readingDirection,
+                CoverSinglePageInDualMode);
+
+            if (IsSinglePageMode)
+            {
+                var current = spread.LeftPageIndex ?? _readerState.CurrentPageIndex;
+                return $"{current + 1} / {_readerState.TotalPages}";
+            }
+
+            var left = spread.LeftPageIndex is int leftIndex ? (leftIndex + 1).ToString() : "-";
+            var right = spread.RightPageIndex is int rightIndex ? (rightIndex + 1).ToString() : "-";
+            return $"{left} | {right} / {_readerState.TotalPages}";
+        }
+    }
+
+    public bool CanGoToPreviousPage => TryGetAdjacentAnchorIndex(isNext: false, out _);
+
+    public bool CanGoToNextPage => TryGetAdjacentAnchorIndex(isNext: true, out _);
 
     public string ReaderStateLabel => _readerState.Lifecycle switch
     {
@@ -307,7 +381,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _activeReaderContext = context;
         SetReaderState(ReaderStateMachine.OpenVolume(context.VolumeId, context.VolumeTitle, context.SourcePath, context.PageLocators));
 
-        if (!NavigateToPage(0))
+        var initialAnchor = ReaderSpreadRules.GetInitialAnchorIndex(
+            context.PageLocators.Count,
+            _readerDisplayMode,
+            _readingDirection,
+            CoverSinglePageInDualMode);
+
+        if (!NavigateToAnchor(initialAnchor))
         {
             StatusMessage = "打开卷失败：无法读取第一页。";
             return;
@@ -319,22 +399,63 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void ShowPreviousPage()
     {
-        if (!CanGoToPreviousPage)
+        if (!TryGetAdjacentAnchorIndex(isNext: false, out var targetAnchor))
         {
             return;
         }
 
-        NavigateToPage(_readerState.CurrentPageIndex - 1);
+        NavigateToAnchor(targetAnchor);
     }
 
     public void ShowNextPage()
     {
-        if (!CanGoToNextPage)
+        if (!TryGetAdjacentAnchorIndex(isNext: true, out var targetAnchor))
         {
             return;
         }
 
-        NavigateToPage(_readerState.CurrentPageIndex + 1);
+        NavigateToAnchor(targetAnchor);
+    }
+
+    public void ToggleReaderDisplayMode()
+    {
+        _readerDisplayMode = IsSinglePageMode ? ReaderDisplayMode.DualPage : ReaderDisplayMode.SinglePage;
+        OnPropertyChanged(nameof(IsSinglePageMode));
+        OnPropertyChanged(nameof(IsDualPageMode));
+        OnPropertyChanged(nameof(ReaderDisplayModeLabel));
+
+        if (_readerState.TotalPages == 0)
+        {
+            return;
+        }
+
+        var targetAnchor = ReaderSpreadRules.NormalizeAnchorIndex(
+            _readerState.CurrentPageIndex,
+            _readerState.TotalPages,
+            _readerDisplayMode,
+            CoverSinglePageInDualMode);
+        NavigateToAnchor(targetAnchor);
+    }
+
+    public void ToggleReadingDirection()
+    {
+        _readingDirection = _readingDirection == ReaderReadingDirection.LeftToRight
+            ? ReaderReadingDirection.RightToLeft
+            : ReaderReadingDirection.LeftToRight;
+        OnPropertyChanged(nameof(ReaderDirectionLabel));
+
+        if (_readerState.TotalPages == 0)
+        {
+            return;
+        }
+
+        var mirroredIndex = _readerState.TotalPages - 1 - _readerState.CurrentPageIndex;
+        var targetAnchor = ReaderSpreadRules.NormalizeAnchorIndex(
+            mirroredIndex,
+            _readerState.TotalPages,
+            _readerDisplayMode,
+            CoverSinglePageInDualMode);
+        NavigateToAnchor(targetAnchor);
     }
 
     private async Task LoadVolumesForSelectedSeriesAsync(long seriesId, CancellationToken cancellationToken = default)
@@ -376,7 +497,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private bool NavigateToPage(int targetPageIndex)
+    private bool NavigateToAnchor(int targetPageIndex)
     {
         if (_activeReaderContext is null)
         {
@@ -386,17 +507,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var loadingState = ReaderStateMachine.NavigateTo(_readerState, targetPageIndex);
         SetReaderState(loadingState);
 
-        if (!TryGetOrLoadPageBitmap(loadingState.CurrentPageIndex, out var bitmap))
+        var spread = ReaderSpreadRules.BuildSpread(
+            loadingState.CurrentPageIndex,
+            loadingState.TotalPages,
+            _readerDisplayMode,
+            _readingDirection,
+            CoverSinglePageInDualMode);
+
+        if (!TryBuildSpreadBitmaps(spread, out var singleBitmap, out var leftBitmap, out var rightBitmap))
         {
             SetReaderState(ReaderStateMachine.MarkError(loadingState, "读取页面失败"));
             StatusMessage = "读取页面失败，请确认资源可访问。";
             return false;
         }
 
-        ReaderPreviewImage = bitmap;
+        ReaderPreviewImage = IsSinglePageMode ? singleBitmap : null;
+        ReaderLeftPageImage = IsDualPageMode ? leftBitmap : null;
+        ReaderRightPageImage = IsDualPageMode ? rightBitmap : null;
         SetReaderState(ReaderStateMachine.MarkPageReady(loadingState));
         UpdateReaderLaunchSummary();
-        PreloadAndReleaseAroundCurrentPage();
+        PreloadAndReleaseAroundCurrentSpread(spread);
 
         if (_readerState.TotalPages > 0)
         {
@@ -404,6 +534,51 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         return true;
+    }
+
+    private bool TryBuildSpreadBitmaps(ReaderSpread spread, out Bitmap? singleBitmap, out Bitmap? leftBitmap, out Bitmap? rightBitmap)
+    {
+        singleBitmap = null;
+        leftBitmap = null;
+        rightBitmap = null;
+
+        if (IsSinglePageMode)
+        {
+            if (spread.LeftPageIndex is not int singleIndex)
+            {
+                return false;
+            }
+
+            if (!TryGetOrLoadPageBitmap(singleIndex, out var loadedSingle))
+            {
+                return false;
+            }
+
+            singleBitmap = loadedSingle;
+            return true;
+        }
+
+        if (spread.LeftPageIndex is int leftIndex)
+        {
+            if (!TryGetOrLoadPageBitmap(leftIndex, out var loadedLeft))
+            {
+                return false;
+            }
+
+            leftBitmap = loadedLeft;
+        }
+
+        if (spread.RightPageIndex is int rightIndex)
+        {
+            if (!TryGetOrLoadPageBitmap(rightIndex, out var loadedRight))
+            {
+                return false;
+            }
+
+            rightBitmap = loadedRight;
+        }
+
+        return leftBitmap is not null || rightBitmap is not null;
     }
 
     private bool TryGetOrLoadPageBitmap(int pageIndex, out Bitmap bitmap)
@@ -439,14 +614,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private void PreloadAndReleaseAroundCurrentPage()
+    private void PreloadAndReleaseAroundCurrentSpread(ReaderSpread spread)
     {
         if (_activeReaderContext is null || _readerState.TotalPages == 0)
         {
             return;
         }
 
-        var keepIndices = _preloadPolicy.GetWindowIndices(_readerState.CurrentPageIndex, _readerState.TotalPages);
+        var keepIndices = new HashSet<int>();
+        foreach (var visibleIndex in spread.VisiblePageIndices)
+        {
+            keepIndices.UnionWith(_preloadPolicy.GetWindowIndices(visibleIndex, _readerState.TotalPages));
+        }
 
         foreach (var index in keepIndices)
         {
@@ -473,6 +652,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void ClearReaderSession()
     {
         ReaderPreviewImage = null;
+        ReaderLeftPageImage = null;
+        ReaderRightPageImage = null;
 
         foreach (var bitmap in _pageBitmapCache.Values)
         {
@@ -494,6 +675,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanGoToNextPage));
     }
 
+    private bool TryGetAdjacentAnchorIndex(bool isNext, out int targetAnchor)
+    {
+        targetAnchor = _readerState.CurrentPageIndex;
+        if (_readerState.TotalPages == 0)
+        {
+            return false;
+        }
+
+        var rawDirectionStep = _readingDirection == ReaderReadingDirection.LeftToRight ? 1 : -1;
+        var delta = isNext ? rawDirectionStep : -rawDirectionStep;
+        var candidate = _readerState.CurrentPageIndex + delta;
+
+        while (candidate >= 0 && candidate < _readerState.TotalPages)
+        {
+            var normalized = ReaderSpreadRules.NormalizeAnchorIndex(
+                candidate,
+                _readerState.TotalPages,
+                _readerDisplayMode,
+                CoverSinglePageInDualMode);
+
+            if (normalized != _readerState.CurrentPageIndex)
+            {
+                targetAnchor = normalized;
+                return true;
+            }
+
+            candidate += delta;
+        }
+
+        return false;
+    }
+
     private void UpdateReaderLaunchSummary()
     {
         if (SelectedSeries is null || SelectedVolume is null || _readerState.TotalPages == 0)
@@ -502,7 +715,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         ReaderLaunchSummary =
-            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {_readerState.TotalPages} 页，当前显示第 {_readerState.CurrentPageNumber} 页。";
+            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {_readerState.TotalPages} 页，模式：{ReaderDisplayModeLabel}，方向：{ReaderDirectionLabel}，当前页：{ReaderPageIndicator}。";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

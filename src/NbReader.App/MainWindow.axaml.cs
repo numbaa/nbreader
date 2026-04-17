@@ -67,4 +67,14 @@ public partial class MainWindow : Window
     {
         _viewModel?.ShowNextPage();
     }
+
+    private void OnReaderToggleModeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.ToggleReaderDisplayMode();
+    }
+
+    private void OnReaderToggleDirectionClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.ToggleReadingDirection();
+    }
 }
