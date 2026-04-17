@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -7,18 +6,6 @@ namespace NbReader.Import;
 
 public static class InputTypeDetector
 {
-    private static readonly HashSet<string> ImageExtensions =
-    [
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".webp",
-        ".bmp",
-        ".gif",
-        ".tif",
-        ".tiff",
-    ];
-
     public static ImportInputKind Detect(string normalizedPath)
     {
         if (string.IsNullOrWhiteSpace(normalizedPath))
@@ -69,7 +56,6 @@ public static class InputTypeDetector
 
     private static bool IsImageFile(string filePath)
     {
-        var extension = Path.GetExtension(filePath);
-        return ImageExtensions.Contains(extension);
+        return ImageFileRules.IsSupportedImagePath(filePath);
     }
 }

@@ -15,18 +15,6 @@ public sealed record ZipImageEntry(string EntryPath, long Size);
 
 public sealed class ZipImageEnumerator
 {
-	private static readonly HashSet<string> ImageExtensions =
-	[
-		".jpg",
-		".jpeg",
-		".png",
-		".webp",
-		".bmp",
-		".gif",
-		".tif",
-		".tiff",
-	];
-
 	public IReadOnlyList<ZipImageEntry> Enumerate(string zipFilePath)
 	{
 		if (string.IsNullOrWhiteSpace(zipFilePath) || !File.Exists(zipFilePath))
@@ -53,7 +41,7 @@ public sealed class ZipImageEnumerator
 		}
 
 		var extension = Path.GetExtension(key);
-		return ImageExtensions.Contains(extension);
+		return ImageFileRules.IsSupportedImageExtension(extension);
 	}
 }
 

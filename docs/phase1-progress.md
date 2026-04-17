@@ -24,11 +24,11 @@
 
 ### M2：结构分析与 ImportPlan
 
-- [ ] 图片文件筛选规则
-- [ ] 自然排序规则统一
-- [ ] 系列名与卷号候选提取
-- [ ] ImportPlan 模型与构建器
-- [ ] warning / conflict 生成
+- [x] 图片文件筛选规则（2026-04-18）
+- [x] 自然排序规则统一（2026-04-18）
+- [x] 系列名与卷号候选提取（2026-04-18）
+- [x] ImportPlan 模型与构建器（2026-04-18）
+- [x] warning / conflict 生成（2026-04-18）
 
 ### M3：用户确认与冲突处理
 
@@ -54,8 +54,8 @@
 ## 4. 测试清单（复杂/高变动功能必测）
 
 - [x] 路径标准化与幂等键：单元测试（2026-04-18）
-- [ ] 图片筛选与自然排序：单元测试
-- [ ] 结构识别与 ImportPlan：单元测试
+- [x] 图片筛选与自然排序：单元测试（2026-04-18）
+- [x] 结构识别与 ImportPlan：单元测试（2026-04-18）
 - [ ] 冲突检测与 awaiting_confirmation：单元测试
 - [ ] importing 事务行为：集成测试（SQLite 临时库）
 - [ ] 4.4 验收场景：场景测试
@@ -75,11 +75,19 @@
 - 验证结果：`dotnet test NbReader.sln` 通过（6/6）；`dotnet build NbReader.sln -c Debug` 通过。
 - 发现问题：无。
 
+### 2026-04-18（第 3 次）
+
+- 完成项：M2 结构分析主链路（目录/zip 图片筛选、统一自然排序、ImportPlan 构建、系列名与卷号候选、warning/conflict、requires_confirmation）。
+- 完成项：ImportOrchestrator 接入 analyzing 阶段并输出 ImportPlan。
+- 完成项：新增 M2 测试（图片枚举排序、ImportPlan 冲突/混合目录判断、orchestrator analyzing 事件）。
+- 验证结果：`dotnet test NbReader.sln` 通过（11/11）；`dotnet build NbReader.sln -c Debug` 通过。
+- 发现问题：无。
+
 ## 6. 下一步
 
-1. 开始 M2：实现有效图片筛选规则并统一 zip/目录自然排序。
-2. 设计并落地 ImportPlan 模型与构建器。
-3. 补充 ImportPlan 相关单元测试与样本。
+1. 开始 M3：实现 awaiting_confirmation 触发条件与状态切换。
+2. 实现用户确认覆盖模型（系列名、卷号、重复策略）并回写 ImportPlan。
+3. 补充冲突检测与 awaiting_confirmation 的专项单元测试。
 
 ## 7. 风险与阻塞
 

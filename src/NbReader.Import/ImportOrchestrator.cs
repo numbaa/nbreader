@@ -5,10 +5,17 @@ namespace NbReader.Import;
 public sealed class ImportOrchestrator
 {
     private readonly IImportTaskStore _taskStore;
+    private readonly ImportPlanAnalyzer _planAnalyzer;
 
     public ImportOrchestrator(IImportTaskStore taskStore)
+        : this(taskStore, new ImportPlanAnalyzer())
+    {
+    }
+
+    public ImportOrchestrator(IImportTaskStore taskStore, ImportPlanAnalyzer planAnalyzer)
     {
         _taskStore = taskStore;
+        _planAnalyzer = planAnalyzer;
     }
 
     public ImportTask CreateOrReuseTask(string inputPath)
@@ -55,5 +62,24 @@ public sealed class ImportOrchestrator
             scanningTask.UpdatedAt));
 
         return scanningTask;
+    }
+
+    public ImportPlan AnalyzeTask(ImportTask task)
+    {
+        var analyzingTask = task with
+        {
+            Status = ImportTaskStatus.Analyzing,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _taskStore.UpsertTask(analyzingTask);
+        _taskStore.AppendEvent(new ImportTaskEvent(
+            analyzingTask.TaskId,
+            ImportTaskStatus.Analyzing,
+            "analyzing_started",
+            "Analyzing phase started.",
+            analyzingTask.UpdatedAt));
+
+        return _planAnalyzer.Analyze(analyzingTask);
     }
 }

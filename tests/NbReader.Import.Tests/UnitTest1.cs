@@ -30,6 +30,32 @@ public class ImportOrchestratorTests
         }
     }
 
+    [Fact]
+    public void AnalyzeTask_ShouldAppendAnalyzingEvent_AndReturnPlan()
+    {
+        var store = new InMemoryImportTaskStore();
+        var orchestrator = new ImportOrchestrator(store);
+
+        var root = Path.Combine(Path.GetTempPath(), "nbreader-orch-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "1.jpg"), "a");
+
+            var task = orchestrator.CreateOrReuseTask(root);
+            var plan = orchestrator.AnalyzeTask(task);
+
+            Assert.Equal(task.TaskId, plan.TaskId);
+            Assert.Equal(ImportInputKind.ImageDirectory, plan.InputKind);
+            Assert.Contains(store.Events, e => e.Status == ImportTaskStatus.Analyzing && e.EventType == "analyzing_started");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private sealed class InMemoryImportTaskStore : IImportTaskStore
     {
         private readonly Dictionary<string, ImportTask> _tasksByLocator = new(StringComparer.Ordinal);
