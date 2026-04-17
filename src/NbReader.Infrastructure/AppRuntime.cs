@@ -1,3 +1,5 @@
+using NbReader.Catalog;
+
 namespace NbReader.Infrastructure;
 
 public sealed class AppRuntime
@@ -6,12 +8,14 @@ public sealed class AppRuntime
         AppSettings settings,
         AppSettingsStore settingsStore,
         AppDatabase database,
-        AppLogger logger)
+        AppLogger logger,
+        SeriesQueryService seriesQueryService)
     {
         Settings = settings;
         SettingsStore = settingsStore;
         Database = database;
         Logger = logger;
+        SeriesQueryService = seriesQueryService;
     }
 
     public AppSettings Settings { get; }
@@ -21,4 +25,6 @@ public sealed class AppRuntime
     public AppDatabase Database { get; }
 
     public AppLogger Logger { get; }
+
+    public SeriesQueryService SeriesQueryService { get; }
 }

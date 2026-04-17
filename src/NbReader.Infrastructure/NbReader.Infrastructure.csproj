@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NbReader.Catalog\NbReader.Catalog.csproj" />
     <ProjectReference Include="..\NbReader.Import\NbReader.Import.csproj" />
   </ItemGroup>
 

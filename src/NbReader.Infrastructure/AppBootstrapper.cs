@@ -1,3 +1,5 @@
+using NbReader.Catalog;
+
 namespace NbReader.Infrastructure;
 
 public static class AppBootstrapper
@@ -17,6 +19,8 @@ public static class AppBootstrapper
         database.Initialize();
         logger.Info($"SQLite initialized at {AppEnvironment.DatabaseFilePath}.");
 
-        return new AppRuntime(settings, settingsStore, database, logger);
+        var seriesQueryService = new SeriesQueryService(database.ConnectionString);
+
+        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService);
     }
 }

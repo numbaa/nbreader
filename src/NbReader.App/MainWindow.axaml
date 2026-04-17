@@ -2,9 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:viewModels="using:NbReader.App.ViewModels"
+    xmlns:viewModels="using:NbReader.App.ViewModels"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="NbReader.App.MainWindow"
+    x:DataType="viewModels:MainWindowViewModel"
         x:CompileBindings="False"
         MinWidth="960"
         MinHeight="640"
@@ -20,7 +21,7 @@
                            FontSize="24"
                            FontWeight="Bold"
                            Foreground="#F9FAFB" />
-                <TextBlock Text="Phase 0 骨架"
+                <TextBlock Text="Phase 2 M1"
                            FontSize="13"
                            Foreground="#93C5FD" />
 
@@ -28,19 +29,24 @@
                     <TextBlock Text="模块"
                                FontWeight="SemiBold"
                                Foreground="#E5E7EB" />
-                    <ItemsControl ItemsSource="{Binding Modules}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
+                    <ListBox ItemsSource="{Binding NavigationItems}"
+                             SelectedItem="{Binding SelectedNavigation, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="#E5E7EB">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
                                 <Border Background="#1F2937"
+                                        BorderBrush="#374151"
+                                        BorderThickness="1"
                                         CornerRadius="8"
-                                        Padding="10"
+                                        Padding="10,8"
                                         Margin="0,0,0,8">
-                                    <TextBlock Text="{Binding}"
-                                               Foreground="#E5E7EB" />
+                                    <TextBlock Text="{Binding}" />
                                 </Border>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -57,103 +63,74 @@
                            FontSize="15"
                            Foreground="#4B5563"
                            TextWrapping="Wrap" />
+                <TextBlock Text="{Binding CurrentSection, StringFormat='当前区域：{0}'}"
+                           Foreground="#334155"
+                           FontSize="13" />
             </StackPanel>
         </Border>
 
         <Grid Grid.Column="1"
               Grid.Row="1"
-              ColumnDefinitions="3*,2*"
               Margin="24">
-            <Border Background="#F8FAFC"
+            <Border IsVisible="{Binding IsCatalogSection}"
+                    Background="#F8FAFC"
                     BorderBrush="#CBD5E1"
                     BorderThickness="1"
                     CornerRadius="12"
-                    Padding="20"
-                    Margin="0,0,16,0">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="Phase 0 验证控制台"
+                    Padding="20">
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="12">
+                    <TextBlock Text="系列卡片"
                                FontSize="20"
                                FontWeight="SemiBold" />
-
-                    <WrapPanel ItemWidth="160"
-                               ItemHeight="38"
-                               HorizontalAlignment="Left"
-                               VerticalAlignment="Top">
-                        <Button Content="选择图片目录"
-                                Width="152"
-                                Click="OnPickDirectoryClick" />
-                        <Button Content="选择 zip 文件"
-                                Width="152"
-                                Margin="12,0,0,0"
-                                Click="OnPickZipClick" />
-                    </WrapPanel>
-
-                    <TextBlock x:Name="ActionStatusText"
-                               Text="等待操作。"
-                               Foreground="#0F172A"
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding StatusMessage}"
+                               Foreground="#334155"
                                TextWrapping="Wrap" />
 
-                    <Border Background="#FFFFFF"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="12">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="目录首图预览"
-                                       FontWeight="SemiBold" />
-                            <Border Height="360"
-                                    Background="#0B1220"
-                                    CornerRadius="8"
-                                    Padding="8">
-                                <Image x:Name="PreviewImage"
-                                       Stretch="Uniform" />
-                            </Border>
-                            <TextBlock x:Name="DirectorySummaryText"
-                                       Text="尚未选择目录。"
-                                       TextWrapping="Wrap"
-                                       Foreground="#334155" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding SeriesCards}"
+                             SelectedItem="{Binding SelectedSeries, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="viewModels:SeriesCardViewModel">
+                                <Border Background="#FFFFFF"
+                                        BorderBrush="#E2E8F0"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="12"
+                                        Margin="0,0,0,10">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding VolumeCount, StringFormat='卷数：{0}'}"
+                                                   Foreground="#475569" />
+                                        <TextBlock Text="{Binding LatestUpdatedText, StringFormat='最近更新：{0}'}"
+                                                   Foreground="#64748B"
+                                                   FontSize="12" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
             </Border>
 
-            <Border Grid.Column="1"
-                    Background="#FFFBEB"
-                    BorderBrush="#F59E0B"
+            <Border IsVisible="{Binding IsPlaceholderSection}"
+                    Background="#FFF7ED"
+                    BorderBrush="#FDBA74"
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="20">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="下一个里程碑"
+                <StackPanel Spacing="10">
+                    <TextBlock Text="功能预留"
                                FontSize="20"
                                FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding NextMilestone}"
+                    <TextBlock Text="当前阶段先实现 Catalog。其余模块将在后续里程碑逐步落地。"
                                TextWrapping="Wrap" />
-                    <TextBlock Text="zip 枚举结果"
-                               Margin="0,8,0,0"
-                               FontWeight="SemiBold" />
-                    <TextBlock x:Name="ZipSummaryText"
-                               Text="尚未选择 zip。"
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Foreground="#9A3412"
                                TextWrapping="Wrap" />
-                    <TextBlock x:Name="DatabaseSummaryText"
-                               Text="数据库写入状态：未执行。"
-                               TextWrapping="Wrap"
-                               Foreground="#92400E" />
-                    <TextBlock Text="运行时状态"
-                               Margin="0,8,0,0"
-                               FontWeight="SemiBold" />
-                    <ItemsControl ItemsSource="{Binding RuntimeChecks}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding StringFormat='• {0}'}"
-                                           TextWrapping="Wrap"
-                                           Margin="0,0,0,8" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="{Binding EnvironmentSummary}"
-                               TextWrapping="Wrap"
-                               Foreground="#92400E" />
                 </StackPanel>
             </Border>
         </Grid>
