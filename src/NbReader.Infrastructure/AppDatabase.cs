@@ -43,9 +43,17 @@ public sealed class AppDatabase
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS series (
+                series_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                normalized_title TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS volume (
                 volume_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_id INTEGER NOT NULL,
+                series_id INTEGER NULL,
                 title TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(source_id) REFERENCES source(source_id) ON DELETE CASCADE,
@@ -91,6 +99,37 @@ public sealed class AppDatabase
             ON CONFLICT(key) DO NOTHING;
             """;
         command.ExecuteNonQuery();
+
+        EnsureColumnExists(connection, "volume", "series_id", "INTEGER NULL");
+    }
+
+    private static void EnsureColumnExists(SqliteConnection connection, string tableName, string columnName, string columnTypeDeclaration)
+    {
+        using var pragma = connection.CreateCommand();
+        pragma.CommandText = $"PRAGMA table_info({tableName});";
+
+        var exists = false;
+        using (var reader = pragma.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                var existingName = reader.GetString(1);
+                if (string.Equals(existingName, columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    exists = true;
+                    break;
+                }
+            }
+        }
+
+        if (exists)
+        {
+            return;
+        }
+
+        using var alter = connection.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {tableName} ADD COLUMN {columnName} {columnTypeDeclaration};";
+        alter.ExecuteNonQuery();
     }
 
     public string? ReadMetaValue(string key)

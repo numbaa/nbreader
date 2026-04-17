@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NbReader.Import\NbReader.Import.csproj" />
+    <ProjectReference Include="..\..\src\NbReader.Infrastructure\NbReader.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
