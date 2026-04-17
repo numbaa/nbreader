@@ -62,6 +62,26 @@ public sealed class AppDatabase
                 UNIQUE(volume_id, page_number)
             );
 
+            CREATE TABLE IF NOT EXISTS import_task (
+                task_id TEXT PRIMARY KEY,
+                raw_input TEXT NOT NULL,
+                normalized_locator TEXT NOT NULL UNIQUE,
+                input_kind TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS import_task_event (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                message TEXT NULL,
+                occurred_at TEXT NOT NULL,
+                FOREIGN KEY(task_id) REFERENCES import_task(task_id) ON DELETE CASCADE
+            );
+
             INSERT INTO app_meta (key, value)
             VALUES ('schema_version', '1')
             ON CONFLICT(key) DO NOTHING;
