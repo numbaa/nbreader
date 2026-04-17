@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media.Imaging;
 using NbReader.Catalog;
 using NbReader.Infrastructure;
+using NbReader.Reader;
 
 namespace NbReader.App.ViewModels;
 
@@ -17,6 +19,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _readerLaunchSummary = "尚未打开卷。";
     private bool _isLoadingVolumes;
     private long _selectedSeriesIdForDetail;
+    private Bitmap? _readerPreviewImage;
+    private readonly UnifiedVolumePageSource _pageSource = new();
 
     public MainWindowViewModel(AppRuntime runtime)
     {
@@ -175,6 +179,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
+    public Bitmap? ReaderPreviewImage
+    {
+        get => _readerPreviewImage;
+        private set
+        {
+            if (ReferenceEquals(_readerPreviewImage, value))
+            {
+                return;
+            }
+
+            var old = _readerPreviewImage;
+            _readerPreviewImage = value;
+            OnPropertyChanged();
+            old?.Dispose();
+        }
+    }
+
     public string StatusMessage
     {
         get => _statusMessage;
@@ -241,7 +262,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public void OpenSelectedVolume()
+    public async Task OpenSelectedVolumeAsync(CancellationToken cancellationToken = default)
     {
         if (SelectedSeries is null || SelectedVolume is null)
         {
@@ -249,8 +270,30 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
+        var context = await Runtime.VolumeQueryService.GetVolumeReaderContextAsync(SelectedVolume.VolumeId, cancellationToken);
+        if (context is null)
+        {
+            StatusMessage = "打开卷失败：未找到卷数据。";
+            return;
+        }
+
+        if (context.PageLocators.Count == 0)
+        {
+            StatusMessage = "打开卷失败：卷内没有可用页面。";
+            return;
+        }
+
+        using var stream = _pageSource.OpenPageStream(context.SourcePath, context.PageLocators[0]);
+        if (stream is null)
+        {
+            StatusMessage = "打开卷失败：无法读取第一页。";
+            return;
+        }
+
+        ReaderPreviewImage = new Bitmap(stream);
+
         ReaderLaunchSummary =
-            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {SelectedVolume.PageCount} 页。";
+            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {context.PageLocators.Count} 页，当前显示第 1 页。";
         NavigateTo("Reader");
         SelectedNavigation = "Reader";
     }

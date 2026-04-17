@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段概览
 
-- 当前里程碑：M2 进行中
+- 当前里程碑：M3 准备中
 - 总体状态：doing
 - 最近更新：2026-04-18
 
@@ -24,7 +24,7 @@
 
 - [x] 实现系列详情页与卷列表（2026-04-18）
 - [x] 打通卷打开进入阅读器链路（2026-04-18）
-- [ ] 建立统一页源抽象第一版（2026-04-18）
+- [x] 建立统一页源抽象第一版（2026-04-18）
 
 ### M3：单页阅读、ReaderState 与基础预加载
 
@@ -76,13 +76,21 @@
 - 完成项：Catalog 视图升级为“系列卡片 + 系列详情（卷列表）”双栏布局。
 - 完成项：打通“系列 -> 卷 -> 打开卷”入口，进入 Reader 占位视图并带出当前卷摘要。
 - 验证结果：`dotnet build NbReader.sln -c Debug` 通过（0 warning）；`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（23/23）。
-- 发现问题：M2 剩余项为统一页源抽象第一版，需在下一轮接入真实页面读取链路。
+- 发现问题：无阻塞；统一页源抽象已在下一次迭代完成。
+
+### 2026-04-18（第 4 次）
+
+- 完成项：新增统一页源读取类 `UnifiedVolumePageSource`，支持目录卷与 zip 卷统一读取页面流。
+- 完成项：新增卷读取上下文查询（`VolumeReaderContext`），打通 `source_path + page_locator` 的首屏读取链路。
+- 完成项：Reader 入口升级为真实首屏渲染，打开卷后可显示第一页图像。
+- 验证结果：`dotnet build NbReader.sln -c Debug` 通过（0 warning）；`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（23/23）。
+- 发现问题：暂无阻塞；下一步进入 M3（单页阅读、ReaderState、基础预加载）。
 
 ## 6. 下一步
 
-1. 完成 M2 的统一页源抽象第一版（目录卷/压缩包卷一致读取）。
-2. 将 Reader 占位入口替换为真实页面加载与首屏渲染。
-3. 为 M2 增加卷列表排序与边界用例测试。
+1. 进入 M3，先实现单页阅读状态（上一页/下一页/页码）。
+2. 定义 ReaderState 并固化状态迁移规则。
+3. 接入基础预加载窗口与释放策略。
 
 ## 7. 风险与阻塞
 

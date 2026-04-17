@@ -53,6 +53,62 @@ public sealed class VolumeQueryService
         return rows;
     }
 
+    public async Task<VolumeReaderContext?> GetVolumeReaderContextAsync(long volumeId, CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        using var volumeCommand = connection.CreateCommand();
+        volumeCommand.CommandText = """
+            SELECT v.volume_id,
+                   v.title,
+                   s.source_path
+            FROM volume v
+            INNER JOIN source s ON s.source_id = v.source_id
+            WHERE v.volume_id = $volumeId
+            LIMIT 1;
+            """;
+        volumeCommand.Parameters.AddWithValue("$volumeId", volumeId);
+
+        long id;
+        string title;
+        string sourcePath;
+        using (var reader = await volumeCommand.ExecuteReaderAsync(cancellationToken))
+        {
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+
+            id = reader.GetInt64(0);
+            title = reader.GetString(1);
+            sourcePath = reader.GetString(2);
+        }
+
+        using var pageCommand = connection.CreateCommand();
+        pageCommand.CommandText = """
+            SELECT p.page_locator
+            FROM page p
+            WHERE p.volume_id = $volumeId
+            ORDER BY p.page_number ASC;
+            """;
+        pageCommand.Parameters.AddWithValue("$volumeId", volumeId);
+
+        var locators = new List<string>();
+        using (var pageReader = await pageCommand.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await pageReader.ReadAsync(cancellationToken))
+            {
+                if (!pageReader.IsDBNull(0))
+                {
+                    locators.Add(pageReader.GetString(0));
+                }
+            }
+        }
+
+        return new VolumeReaderContext(id, title, sourcePath, locators);
+    }
+
     private static DateTimeOffset ParseSqliteTimestampOrNow(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))

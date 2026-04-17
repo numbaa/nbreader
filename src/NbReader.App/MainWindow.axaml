@@ -187,6 +187,13 @@
                     <TextBlock Text="{Binding ReaderLaunchSummary}"
                                TextWrapping="Wrap"
                                Foreground="#334155" />
+                    <Border Height="520"
+                            Background="#0B1220"
+                            CornerRadius="8"
+                            Padding="8">
+                        <Image Source="{Binding ReaderPreviewImage}"
+                               Stretch="Uniform" />
+                    </Border>
                     <TextBlock Text="下一步将接入统一页源与阅读状态。"
                                Foreground="#64748B" />
                 </StackPanel>

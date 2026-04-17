@@ -40,8 +40,21 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnOpenSelectedVolumeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnOpenSelectedVolumeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _viewModel?.OpenSelectedVolume();
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.OpenSelectedVolumeAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"打开卷失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to open selected volume.", ex);
+        }
     }
 }
