@@ -21,7 +21,7 @@
                            FontSize="24"
                            FontWeight="Bold"
                            Foreground="#F9FAFB" />
-                <TextBlock Text="Phase 2 M1"
+                <TextBlock Text="Phase 2 M2"
                            FontSize="13"
                            Foreground="#93C5FD" />
 
@@ -78,8 +78,10 @@
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="20">
-                <Grid RowDefinitions="Auto,Auto,*"
-                      RowSpacing="12">
+                                <Grid RowDefinitions="Auto,Auto,*"
+                                            ColumnDefinitions="2*,3*"
+                                            ColumnSpacing="16"
+                                            RowSpacing="12">
                     <TextBlock Text="系列卡片"
                                FontSize="20"
                                FontWeight="SemiBold" />
@@ -88,7 +90,8 @@
                                Foreground="#334155"
                                TextWrapping="Wrap" />
 
-                    <ListBox Grid.Row="2"
+                                        <ListBox Grid.Row="2"
+                                                         Grid.Column="0"
                              ItemsSource="{Binding SeriesCards}"
                              SelectedItem="{Binding SelectedSeries, Mode=TwoWay}">
                         <ListBox.ItemTemplate>
@@ -113,7 +116,80 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <Border Grid.Row="0"
+                            Grid.Column="1"
+                            Grid.RowSpan="3"
+                            Background="#FFFFFF"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="14">
+                        <Grid RowDefinitions="Auto,Auto,*,Auto"
+                              RowSpacing="10">
+                            <TextBlock Text="系列详情"
+                                       FontSize="18"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding SeriesDetailTitle}"
+                                       Foreground="#475569"
+                                       TextWrapping="Wrap" />
+
+                            <ListBox Grid.Row="2"
+                                     ItemsSource="{Binding VolumeCards}"
+                                     SelectedItem="{Binding SelectedVolume, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="viewModels:VolumeCardViewModel">
+                                        <Border BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="10"
+                                                Margin="0,0,0,8">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding PageCount, StringFormat='页数：{0}'}"
+                                                           Foreground="#64748B" />
+                                                <TextBlock Text="{Binding CreatedAtText, StringFormat='导入时间：{0}'}"
+                                                           FontSize="12"
+                                                           Foreground="#94A3B8" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <StackPanel Grid.Row="3"
+                                        Orientation="Horizontal"
+                                        Spacing="8">
+                                <Button Content="打开所选卷"
+                                        IsEnabled="{Binding CanOpenSelectedVolume}"
+                                        Click="OnOpenSelectedVolumeClick" />
+                                <TextBlock Text="{Binding IsLoadingVolumes, StringFormat='加载卷中：{0}'}"
+                                           VerticalAlignment="Center"
+                                           Foreground="#64748B" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
+            </Border>
+
+            <Border IsVisible="{Binding IsReaderSection}"
+                    Background="#F1F5F9"
+                    BorderBrush="#CBD5E1"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Reader 入口（M2 占位）"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ReaderLaunchSummary}"
+                               TextWrapping="Wrap"
+                               Foreground="#334155" />
+                    <TextBlock Text="下一步将接入统一页源与阅读状态。"
+                               Foreground="#64748B" />
+                </StackPanel>
             </Border>
 
             <Border IsVisible="{Binding IsPlaceholderSection}"

@@ -39,4 +39,9 @@ public partial class MainWindow : Window
             _viewModel.Runtime.Logger.Error("Failed to load series list.", ex);
         }
     }
+
+    private void OnOpenSelectedVolumeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel?.OpenSelectedVolume();
+    }
 }

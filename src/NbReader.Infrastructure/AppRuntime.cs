@@ -9,13 +9,15 @@ public sealed class AppRuntime
         AppSettingsStore settingsStore,
         AppDatabase database,
         AppLogger logger,
-        SeriesQueryService seriesQueryService)
+        SeriesQueryService seriesQueryService,
+        VolumeQueryService volumeQueryService)
     {
         Settings = settings;
         SettingsStore = settingsStore;
         Database = database;
         Logger = logger;
         SeriesQueryService = seriesQueryService;
+        VolumeQueryService = volumeQueryService;
     }
 
     public AppSettings Settings { get; }
@@ -27,4 +29,6 @@ public sealed class AppRuntime
     public AppLogger Logger { get; }
 
     public SeriesQueryService SeriesQueryService { get; }
+
+    public VolumeQueryService VolumeQueryService { get; }
 }

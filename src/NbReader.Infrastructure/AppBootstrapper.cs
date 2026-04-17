@@ -20,7 +20,8 @@ public static class AppBootstrapper
         logger.Info($"SQLite initialized at {AppEnvironment.DatabaseFilePath}.");
 
         var seriesQueryService = new SeriesQueryService(database.ConnectionString);
+        var volumeQueryService = new VolumeQueryService(database.ConnectionString);
 
-        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService);
+        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService, volumeQueryService);
     }
 }
