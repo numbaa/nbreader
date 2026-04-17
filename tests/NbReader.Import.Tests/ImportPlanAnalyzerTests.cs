@@ -32,6 +32,7 @@ public class ImportPlanAnalyzerTests
             var plan = analyzer.Analyze(task);
 
             Assert.True(plan.RequiresConfirmation);
+            Assert.False(plan.IsConfirmed);
             Assert.Contains("mixed_directory_layout", plan.WarningList);
         }
         finally
@@ -70,6 +71,7 @@ public class ImportPlanAnalyzerTests
             Assert.True(plan.ConflictReport.HasConflicts);
             Assert.Contains("volume_number:1", plan.ConflictReport.DuplicateVolumeNumberKeys);
             Assert.True(plan.RequiresConfirmation);
+            Assert.False(plan.IsConfirmed);
             Assert.Equal(2, plan.VolumePlans.Count);
             Assert.All(plan.VolumePlans, volume => Assert.Single(volume.PageLocators));
         }

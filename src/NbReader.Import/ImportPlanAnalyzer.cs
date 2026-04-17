@@ -61,7 +61,8 @@ public sealed class ImportPlanAnalyzer
             volumePlans,
             compactWarnings,
             conflictReport,
-            requiresConfirmation);
+            requiresConfirmation,
+            IsConfirmed: false);
     }
 
     private VolumePlan BuildZipVolume(string zipPath, List<string> warningList)

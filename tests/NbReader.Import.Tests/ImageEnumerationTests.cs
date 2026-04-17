@@ -22,7 +22,7 @@ public class ImageEnumerationTests
 
             var enumerator = new DirectoryImageEnumerator();
             var pages = enumerator.Enumerate(root)
-                .Select(Path.GetFileName)
+                .Select(path => Path.GetFileName(path) ?? string.Empty)
                 .ToArray();
 
             Assert.Equal(["1.jpg", "2.jpg", "10.jpg"], pages);

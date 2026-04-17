@@ -11,7 +11,8 @@ public sealed record ImportPlan(
     IReadOnlyList<VolumePlan> VolumePlans,
     IReadOnlyList<string> WarningList,
     ConflictReport ConflictReport,
-    bool RequiresConfirmation);
+    bool RequiresConfirmation,
+    bool IsConfirmed);
 
 public sealed record VolumePlan(
     string SourceLocator,
@@ -27,3 +28,15 @@ public sealed record ConflictReport(
     IReadOnlyList<string> DuplicateVolumeNumberKeys,
     IReadOnlyList<string> DetailMessages,
     bool HasConflicts);
+
+public sealed record ImportConfirmationRequest(
+    string? SeriesNameOverride,
+    IReadOnlyList<VolumeConfirmationOverride> VolumeOverrides,
+    bool SkipDuplicateVolumes,
+    bool IgnoreWarnings);
+
+public sealed record VolumeConfirmationOverride(
+    string SourceLocator,
+    string? DisplayNameOverride,
+    int? VolumeNumberOverride,
+    bool Skip);

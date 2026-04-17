@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段概览
 
-- 当前里程碑：M2（结构分析与 ImportPlan）
+- 当前里程碑：M4（事务写库与幂等）
 - 总体状态：doing
 - 最近更新：2026-04-18
 
@@ -32,10 +32,10 @@
 
 ### M3：用户确认与冲突处理
 
-- [ ] awaiting_confirmation 触发条件
-- [ ] 用户确认覆盖规则
-- [ ] 确认结果回写 ImportPlan
-- [ ] 确认事件持久化
+- [x] awaiting_confirmation 触发条件（2026-04-18）
+- [x] 用户确认覆盖规则（2026-04-18）
+- [x] 确认结果回写 ImportPlan（2026-04-18）
+- [x] 确认事件持久化（2026-04-18）
 
 ### M4：事务写库与幂等
 
@@ -56,7 +56,7 @@
 - [x] 路径标准化与幂等键：单元测试（2026-04-18）
 - [x] 图片筛选与自然排序：单元测试（2026-04-18）
 - [x] 结构识别与 ImportPlan：单元测试（2026-04-18）
-- [ ] 冲突检测与 awaiting_confirmation：单元测试
+- [x] 冲突检测与 awaiting_confirmation：单元测试（2026-04-18）
 - [ ] importing 事务行为：集成测试（SQLite 临时库）
 - [ ] 4.4 验收场景：场景测试
 
@@ -83,11 +83,19 @@
 - 验证结果：`dotnet test NbReader.sln` 通过（11/11）；`dotnet build NbReader.sln -c Debug` 通过。
 - 发现问题：无。
 
+### 2026-04-18（第 4 次）
+
+- 完成项：M3 状态流落地（Analyze 后按条件进入 `awaiting_confirmation`；确认后进入 `importing`）。
+- 完成项：用户确认覆盖模型落地（系列名覆盖、卷显示名/卷号覆盖、跳过重复卷、忽略 warning）。
+- 完成项：新增确认流程测试与冲突场景测试，并修复 1 个可空性编译警告（CS8631）。
+- 验证结果：`dotnet test NbReader.sln` 通过（15/15）；`dotnet build NbReader.sln -c Debug` 通过，且无新增警告。
+- 发现问题：无。
+
 ## 6. 下一步
 
-1. 开始 M3：实现 awaiting_confirmation 触发条件与状态切换。
-2. 实现用户确认覆盖模型（系列名、卷号、重复策略）并回写 ImportPlan。
-3. 补充冲突检测与 awaiting_confirmation 的专项单元测试。
+1. 开始 M4：扩展数据库模型到 Source、Series、Volume、Page 的最小闭环。
+2. 实现 importing 事务写入与失败回滚。
+3. 实现重复导入幂等策略并补 SQLite 集成测试。
 
 ## 7. 风险与阻塞
 

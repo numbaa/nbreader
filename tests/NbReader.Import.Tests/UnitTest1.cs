@@ -56,6 +56,76 @@ public class ImportOrchestratorTests
         }
     }
 
+    [Fact]
+    public void AnalyzeTask_ShouldSwitchToAwaitingConfirmation_WhenPlanRequiresConfirmation()
+    {
+        var store = new InMemoryImportTaskStore();
+        var orchestrator = new ImportOrchestrator(store);
+
+        var root = Path.Combine(Path.GetTempPath(), "nbreader-orch-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "0001.jpg"), "root-image");
+            var vol = Path.Combine(root, "Vol.01");
+            Directory.CreateDirectory(vol);
+            File.WriteAllText(Path.Combine(vol, "1.jpg"), "a");
+
+            var task = orchestrator.CreateOrReuseTask(root);
+            var seriesTask = task with { InputKind = ImportInputKind.SeriesDirectory };
+            var plan = orchestrator.AnalyzeTask(seriesTask);
+
+            Assert.True(plan.RequiresConfirmation);
+            Assert.Contains(store.Events, e => e.Status == ImportTaskStatus.AwaitingConfirmation && e.EventType == "awaiting_confirmation");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ConfirmPlan_ShouldMoveTaskToImporting_AndReturnConfirmedPlan()
+    {
+        var store = new InMemoryImportTaskStore();
+        var orchestrator = new ImportOrchestrator(store);
+
+        var task = new ImportTask(
+            Guid.NewGuid(),
+            "C:/input",
+            "C:/input",
+            ImportInputKind.SeriesDirectory,
+            ImportTaskStatus.AwaitingConfirmation,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+
+        var plan = new ImportPlan(
+            task.TaskId,
+            ImportInputKind.SeriesDirectory,
+            task.NormalizedLocator,
+            "Series",
+            [
+                new VolumePlan("C:/input/vol1", "Vol.01", "Series", 1, ["1.jpg"], "1.jpg", [], []),
+            ],
+            ["low_page_count"],
+            new ConflictReport([], [], false),
+            RequiresConfirmation: true,
+            IsConfirmed: false);
+
+        var confirmed = orchestrator.ConfirmPlan(task, plan, new ImportConfirmationRequest(
+            SeriesNameOverride: "Series Confirmed",
+            VolumeOverrides: [],
+            SkipDuplicateVolumes: false,
+            IgnoreWarnings: true));
+
+        Assert.True(confirmed.IsConfirmed);
+        Assert.False(confirmed.RequiresConfirmation);
+        Assert.Equal("Series Confirmed", confirmed.SeriesCandidate);
+        Assert.Contains(store.Events, e => e.Status == ImportTaskStatus.AwaitingConfirmation && e.EventType == "confirmation_started");
+        Assert.Contains(store.Events, e => e.Status == ImportTaskStatus.Importing && e.EventType == "confirmation_applied");
+    }
+
     private sealed class InMemoryImportTaskStore : IImportTaskStore
     {
         private readonly Dictionary<string, ImportTask> _tasksByLocator = new(StringComparer.Ordinal);

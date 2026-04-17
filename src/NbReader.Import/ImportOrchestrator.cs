@@ -80,6 +80,58 @@ public sealed class ImportOrchestrator
             "Analyzing phase started.",
             analyzingTask.UpdatedAt));
 
-        return _planAnalyzer.Analyze(analyzingTask);
+        var plan = _planAnalyzer.Analyze(analyzingTask);
+        if (plan.RequiresConfirmation)
+        {
+            var awaitingTask = analyzingTask with
+            {
+                Status = ImportTaskStatus.AwaitingConfirmation,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            };
+
+            _taskStore.UpsertTask(awaitingTask);
+            _taskStore.AppendEvent(new ImportTaskEvent(
+                awaitingTask.TaskId,
+                ImportTaskStatus.AwaitingConfirmation,
+                "awaiting_confirmation",
+                "Plan requires user confirmation.",
+                awaitingTask.UpdatedAt));
+        }
+
+        return plan;
+    }
+
+    public ImportPlan ConfirmPlan(ImportTask task, ImportPlan plan, ImportConfirmationRequest request)
+    {
+        var awaitingTask = task with
+        {
+            Status = ImportTaskStatus.AwaitingConfirmation,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _taskStore.UpsertTask(awaitingTask);
+        _taskStore.AppendEvent(new ImportTaskEvent(
+            awaitingTask.TaskId,
+            ImportTaskStatus.AwaitingConfirmation,
+            "confirmation_started",
+            "User confirmation started.",
+            awaitingTask.UpdatedAt));
+
+        var confirmedPlan = ImportPlanConfirmation.ApplyConfirmation(plan, request);
+        var importingTask = awaitingTask with
+        {
+            Status = ImportTaskStatus.Importing,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _taskStore.UpsertTask(importingTask);
+        _taskStore.AppendEvent(new ImportTaskEvent(
+            importingTask.TaskId,
+            ImportTaskStatus.Importing,
+            "confirmation_applied",
+            "Confirmation applied, task is ready for importing.",
+            importingTask.UpdatedAt));
+
+        return confirmedPlan;
     }
 }
