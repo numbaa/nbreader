@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        Closing += OnClosing;
     }
 
     public MainWindow(AppRuntime runtime)
@@ -58,6 +59,42 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnOpenContinueReadingClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.OpenContinueReadingAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"继续阅读失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to open continue reading entry.", ex);
+        }
+    }
+
+    private async void OnOpenSelectedRecentReadingClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.OpenSelectedRecentReadingAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"打开最近阅读失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to open selected recent reading entry.", ex);
+        }
+    }
+
     private void OnReaderPreviousPageClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.ShowPreviousPage();
@@ -76,5 +113,10 @@ public partial class MainWindow : Window
     private void OnReaderToggleDirectionClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel?.ToggleReadingDirection();
+    }
+
+    private void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        _viewModel?.FlushReadingProgress();
     }
 }

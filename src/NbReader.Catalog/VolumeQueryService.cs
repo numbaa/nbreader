@@ -61,6 +61,7 @@ public sealed class VolumeQueryService
         using var volumeCommand = connection.CreateCommand();
         volumeCommand.CommandText = """
             SELECT v.volume_id,
+                 COALESCE(v.series_id, 0) AS series_id,
                    v.title,
                    s.source_path
             FROM volume v
@@ -71,6 +72,7 @@ public sealed class VolumeQueryService
         volumeCommand.Parameters.AddWithValue("$volumeId", volumeId);
 
         long id;
+        long seriesId;
         string title;
         string sourcePath;
         using (var reader = await volumeCommand.ExecuteReaderAsync(cancellationToken))
@@ -81,8 +83,9 @@ public sealed class VolumeQueryService
             }
 
             id = reader.GetInt64(0);
-            title = reader.GetString(1);
-            sourcePath = reader.GetString(2);
+            seriesId = reader.GetInt64(1);
+            title = reader.GetString(2);
+            sourcePath = reader.GetString(3);
         }
 
         using var pageCommand = connection.CreateCommand();
@@ -106,7 +109,42 @@ public sealed class VolumeQueryService
             }
         }
 
-        return new VolumeReaderContext(id, title, sourcePath, locators);
+        return new VolumeReaderContext(id, seriesId, title, sourcePath, locators);
+    }
+
+    public async Task<long?> GetNextVolumeIdAsync(long currentVolumeId, CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            WITH current_volume AS (
+                SELECT volume_id, series_id, created_at
+                FROM volume
+                WHERE volume_id = $currentVolumeId
+                LIMIT 1
+            )
+            SELECT v.volume_id
+            FROM volume v
+            INNER JOIN current_volume c ON c.series_id = v.series_id
+            WHERE v.series_id IS NOT NULL
+              AND (
+                    v.created_at > c.created_at
+                    OR (v.created_at = c.created_at AND v.volume_id > c.volume_id)
+                  )
+            ORDER BY v.created_at ASC, v.volume_id ASC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$currentVolumeId", currentVolumeId);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        if (result is null || result == DBNull.Value)
+        {
+            return null;
+        }
+
+        return Convert.ToInt64(result);
     }
 
     private static DateTimeOffset ParseSqliteTimestampOrNow(string? text)

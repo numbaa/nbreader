@@ -11,6 +11,7 @@ namespace NbReader.App.ViewModels;
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private const bool CoverSinglePageInDualMode = true;
+    private static readonly TimeSpan ProgressWriteThrottle = TimeSpan.FromSeconds(2);
 
     private string _currentSection = "Catalog";
     private string _selectedNavigation = "Catalog";
@@ -24,10 +25,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private Bitmap? _readerPreviewImage;
     private Bitmap? _readerLeftPageImage;
     private Bitmap? _readerRightPageImage;
+    private string _continueReadingSummary = "暂无继续阅读记录。";
+    private RecentReadingItemViewModel? _selectedRecentReading;
+    private RecentReadingItemViewModel? _continueReadingItem;
     private VolumeReaderContext? _activeReaderContext;
     private ReaderState _readerState = ReaderState.Empty;
     private ReaderDisplayMode _readerDisplayMode = ReaderDisplayMode.SinglePage;
     private ReaderReadingDirection _readingDirection = ReaderReadingDirection.LeftToRight;
+    private int _maxPageReached;
+    private DateTimeOffset _lastProgressWriteAt = DateTimeOffset.MinValue;
+    private bool _isProgressWriteInFlight;
+    private bool _pendingForcedProgressWrite;
     private readonly Dictionary<int, Bitmap> _pageBitmapCache = [];
     private readonly NearbyPageWindowPolicy _preloadPolicy = new(radius: 1);
     private readonly UnifiedVolumePageSource _pageSource = new();
@@ -58,6 +66,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<SeriesCardViewModel> SeriesCards { get; } = [];
 
     public ObservableCollection<VolumeCardViewModel> VolumeCards { get; } = [];
+
+    public ObservableCollection<RecentReadingItemViewModel> RecentReadings { get; } = [];
 
     public string SelectedNavigation
     {
@@ -143,6 +153,41 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool CanOpenSelectedVolume => SelectedVolume is not null;
+
+    public RecentReadingItemViewModel? SelectedRecentReading
+    {
+        get => _selectedRecentReading;
+        set
+        {
+            if (_selectedRecentReading == value)
+            {
+                return;
+            }
+
+            _selectedRecentReading = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanOpenSelectedRecentReading));
+        }
+    }
+
+    public bool CanOpenSelectedRecentReading => SelectedRecentReading is not null;
+
+    public bool CanContinueReading => _continueReadingItem is not null;
+
+    public string ContinueReadingSummary
+    {
+        get => _continueReadingSummary;
+        private set
+        {
+            if (_continueReadingSummary == value)
+            {
+                return;
+            }
+
+            _continueReadingSummary = value;
+            OnPropertyChanged();
+        }
+    }
 
     public string SeriesDetailTitle
     {
@@ -354,6 +399,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             SelectedSeries = SeriesCards[0];
         }
+
+        await LoadReadingEntrypointsAsync(cancellationToken);
     }
 
     public async Task OpenSelectedVolumeAsync(CancellationToken cancellationToken = default)
@@ -364,7 +411,41 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
-        var context = await Runtime.VolumeQueryService.GetVolumeReaderContextAsync(SelectedVolume.VolumeId, cancellationToken);
+        await OpenVolumeByIdAsync(SelectedVolume.VolumeId, cancellationToken);
+    }
+
+    public async Task OpenContinueReadingAsync(CancellationToken cancellationToken = default)
+    {
+        if (_continueReadingItem is null)
+        {
+            StatusMessage = "暂无可继续阅读的记录。";
+            return;
+        }
+
+        await OpenVolumeByIdAsync(_continueReadingItem.VolumeId, cancellationToken);
+    }
+
+    public async Task OpenSelectedRecentReadingAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedRecentReading is null)
+        {
+            StatusMessage = "请先选择一条最近阅读记录。";
+            return;
+        }
+
+        await OpenVolumeByIdAsync(SelectedRecentReading.VolumeId, cancellationToken);
+    }
+
+    public void FlushReadingProgress()
+    {
+        _ = PersistReadingProgressAsync(force: true);
+    }
+
+    private async Task OpenVolumeByIdAsync(long volumeId, CancellationToken cancellationToken = default)
+    {
+        await PersistReadingProgressAsync(force: true, cancellationToken);
+
+        var context = await Runtime.VolumeQueryService.GetVolumeReaderContextAsync(volumeId, cancellationToken);
         if (context is null)
         {
             StatusMessage = "打开卷失败：未找到卷数据。";
@@ -381,11 +462,28 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _activeReaderContext = context;
         SetReaderState(ReaderStateMachine.OpenVolume(context.VolumeId, context.VolumeTitle, context.SourcePath, context.PageLocators));
 
-        var initialAnchor = ReaderSpreadRules.GetInitialAnchorIndex(
-            context.PageLocators.Count,
-            _readerDisplayMode,
-            _readingDirection,
-            CoverSinglePageInDualMode);
+        var savedProgress = await Runtime.ReadingProgressService.GetProgressAsync(context.VolumeId, cancellationToken);
+        if (savedProgress is not null)
+        {
+            _maxPageReached = Math.Max(savedProgress.MaxPageReached, savedProgress.CurrentPageIndex);
+            RestoreReaderPreferences(savedProgress);
+        }
+        else
+        {
+            _maxPageReached = 0;
+        }
+
+        var initialAnchor = savedProgress is null
+            ? ReaderSpreadRules.GetInitialAnchorIndex(
+                context.PageLocators.Count,
+                _readerDisplayMode,
+                _readingDirection,
+                CoverSinglePageInDualMode)
+            : ReaderSpreadRules.NormalizeAnchorIndex(
+                savedProgress.CurrentPageIndex,
+                context.PageLocators.Count,
+                _readerDisplayMode,
+                CoverSinglePageInDualMode);
 
         if (!NavigateToAnchor(initialAnchor))
         {
@@ -395,6 +493,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         NavigateTo("Reader");
         SelectedNavigation = "Reader";
+
+        if (savedProgress is not null)
+        {
+            StatusMessage = $"已恢复阅读进度：第 {Math.Clamp(savedProgress.CurrentPageIndex + 1, 1, context.PageLocators.Count)} / {context.PageLocators.Count} 页。";
+        }
+
+        await LoadReadingEntrypointsAsync(cancellationToken);
     }
 
     public void ShowPreviousPage()
@@ -411,6 +516,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (!TryGetAdjacentAnchorIndex(isNext: true, out var targetAnchor))
         {
+            _ = TryOpenNextVolumeAsync();
             return;
         }
 
@@ -435,6 +541,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _readerDisplayMode,
             CoverSinglePageInDualMode);
         NavigateToAnchor(targetAnchor);
+        _ = PersistReadingProgressAsync(force: false);
     }
 
     public void ToggleReadingDirection()
@@ -456,6 +563,58 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _readerDisplayMode,
             CoverSinglePageInDualMode);
         NavigateToAnchor(targetAnchor);
+        _ = PersistReadingProgressAsync(force: false);
+    }
+
+    private async Task LoadReadingEntrypointsAsync(CancellationToken cancellationToken = default)
+    {
+        var recentRows = await Runtime.ReadingProgressService.GetRecentReadingsAsync(limit: 8, cancellationToken);
+
+        RecentReadings.Clear();
+        foreach (var row in recentRows)
+        {
+            RecentReadings.Add(new RecentReadingItemViewModel(row));
+        }
+
+        SelectedRecentReading = RecentReadings.Count > 0 ? RecentReadings[0] : null;
+
+        _continueReadingItem = RecentReadings.FirstOrDefault(item => !item.Completed)
+            ?? RecentReadings.FirstOrDefault();
+        OnPropertyChanged(nameof(CanContinueReading));
+
+        ContinueReadingSummary = _continueReadingItem is null
+            ? "暂无继续阅读记录。"
+            : $"继续阅读：{_continueReadingItem.SeriesTitle} / {_continueReadingItem.VolumeTitle}（{_continueReadingItem.CurrentPageText}）";
+    }
+
+    private async Task TryOpenNextVolumeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_activeReaderContext is null)
+        {
+            return;
+        }
+
+        var nextVolumeId = await Runtime.VolumeQueryService.GetNextVolumeIdAsync(_activeReaderContext.VolumeId, cancellationToken);
+        if (nextVolumeId is null)
+        {
+            StatusMessage = "当前已是本系列最后一卷。";
+            _ = PersistReadingProgressAsync(force: true, cancellationToken);
+            return;
+        }
+
+        StatusMessage = "已到卷尾，正在打开下一卷...";
+        await OpenVolumeByIdAsync(nextVolumeId.Value, cancellationToken);
+    }
+
+    private void RestoreReaderPreferences(ReadingProgressSnapshot progress)
+    {
+        _readerDisplayMode = ParseDisplayMode(progress.ReadingMode);
+        _readingDirection = ParseReadingDirection(progress.ReadingDirection);
+
+        OnPropertyChanged(nameof(IsSinglePageMode));
+        OnPropertyChanged(nameof(IsDualPageMode));
+        OnPropertyChanged(nameof(ReaderDisplayModeLabel));
+        OnPropertyChanged(nameof(ReaderDirectionLabel));
     }
 
     private async Task LoadVolumesForSelectedSeriesAsync(long seriesId, CancellationToken cancellationToken = default)
@@ -527,6 +686,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         SetReaderState(ReaderStateMachine.MarkPageReady(loadingState));
         UpdateReaderLaunchSummary();
         PreloadAndReleaseAroundCurrentSpread(spread);
+
+        if (spread.VisiblePageIndices.Count > 0)
+        {
+            _maxPageReached = Math.Max(_maxPageReached, spread.VisiblePageIndices.Max());
+        }
+
+        _ = PersistReadingProgressAsync(force: false);
 
         if (_readerState.TotalPages > 0)
         {
@@ -662,6 +828,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         _pageBitmapCache.Clear();
         _activeReaderContext = null;
+        _maxPageReached = 0;
         SetReaderState(ReaderState.Empty);
         ReaderLaunchSummary = "尚未打开卷。";
     }
@@ -707,15 +874,97 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         return false;
     }
 
-    private void UpdateReaderLaunchSummary()
+    private async Task PersistReadingProgressAsync(bool force, CancellationToken cancellationToken = default)
     {
-        if (SelectedSeries is null || SelectedVolume is null || _readerState.TotalPages == 0)
+        if (_activeReaderContext is null || _readerState.TotalPages == 0)
         {
             return;
         }
 
+        var now = DateTimeOffset.UtcNow;
+        if (!force && now - _lastProgressWriteAt < ProgressWriteThrottle)
+        {
+            return;
+        }
+
+        if (_isProgressWriteInFlight)
+        {
+            _pendingForcedProgressWrite = _pendingForcedProgressWrite || force;
+            return;
+        }
+
+        _isProgressWriteInFlight = true;
+        try
+        {
+            var totalPages = _readerState.TotalPages;
+            var normalizedCurrentPage = Math.Clamp(_readerState.CurrentPageIndex, 0, totalPages - 1);
+            var normalizedMaxReached = Math.Clamp(Math.Max(_maxPageReached, normalizedCurrentPage), 0, totalPages - 1);
+            var completed = normalizedCurrentPage >= totalPages - 1;
+
+            var snapshot = new ReadingProgressSnapshot(
+                VolumeId: _activeReaderContext.VolumeId,
+                CurrentPageIndex: normalizedCurrentPage,
+                MaxPageReached: normalizedMaxReached,
+                Completed: completed,
+                LastReadAt: now,
+                ReadingMode: SerializeDisplayMode(_readerDisplayMode),
+                ReadingDirection: SerializeReadingDirection(_readingDirection),
+                UpdatedAt: now);
+
+            await Runtime.ReadingProgressService.UpsertProgressAsync(snapshot, cancellationToken);
+            _lastProgressWriteAt = now;
+        }
+        catch (Exception ex)
+        {
+            Runtime.Logger.Error("Failed to persist reading progress.", ex);
+        }
+        finally
+        {
+            _isProgressWriteInFlight = false;
+        }
+
+        if (_pendingForcedProgressWrite)
+        {
+            _pendingForcedProgressWrite = false;
+            await PersistReadingProgressAsync(force: true, cancellationToken);
+        }
+    }
+
+    private static ReaderDisplayMode ParseDisplayMode(string? text)
+    {
+        return string.Equals(text, "double", StringComparison.OrdinalIgnoreCase)
+            ? ReaderDisplayMode.DualPage
+            : ReaderDisplayMode.SinglePage;
+    }
+
+    private static ReaderReadingDirection ParseReadingDirection(string? text)
+    {
+        return string.Equals(text, "rtl", StringComparison.OrdinalIgnoreCase)
+            ? ReaderReadingDirection.RightToLeft
+            : ReaderReadingDirection.LeftToRight;
+    }
+
+    private static string SerializeDisplayMode(ReaderDisplayMode mode)
+    {
+        return mode == ReaderDisplayMode.DualPage ? "double" : "single";
+    }
+
+    private static string SerializeReadingDirection(ReaderReadingDirection direction)
+    {
+        return direction == ReaderReadingDirection.RightToLeft ? "rtl" : "ltr";
+    }
+
+    private void UpdateReaderLaunchSummary()
+    {
+        if (_activeReaderContext is null || _readerState.TotalPages == 0)
+        {
+            return;
+        }
+
+        var seriesTitle = SelectedSeries?.Title ?? "(未知系列)";
+        var volumeTitle = SelectedVolume?.Title ?? _activeReaderContext.VolumeTitle;
         ReaderLaunchSummary =
-            $"已从系列“{SelectedSeries.Title}”打开卷“{SelectedVolume.Title}”，共 {_readerState.TotalPages} 页，模式：{ReaderDisplayModeLabel}，方向：{ReaderDirectionLabel}，当前页：{ReaderPageIndicator}。";
+            $"已从系列“{seriesTitle}”打开卷“{volumeTitle}”，共 {_readerState.TotalPages} 页，模式：{ReaderDisplayModeLabel}，方向：{ReaderDirectionLabel}，当前页：{ReaderPageIndicator}。";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -767,4 +1016,41 @@ public sealed class VolumeCardViewModel
     public DateTimeOffset CreatedAt { get; }
 
     public string CreatedAtText => CreatedAt.ToLocalTime().ToString("yyyy-MM-dd");
+}
+
+public sealed class RecentReadingItemViewModel
+{
+    public RecentReadingItemViewModel(RecentReadingEntry entry)
+    {
+        VolumeId = entry.VolumeId;
+        SeriesId = entry.SeriesId;
+        SeriesTitle = entry.SeriesTitle;
+        VolumeTitle = entry.VolumeTitle;
+        CurrentPageIndex = entry.CurrentPageIndex;
+        PageCount = entry.PageCount;
+        Completed = entry.Completed;
+        LastReadAt = entry.LastReadAt;
+    }
+
+    public long VolumeId { get; }
+
+    public long SeriesId { get; }
+
+    public string SeriesTitle { get; }
+
+    public string VolumeTitle { get; }
+
+    public int CurrentPageIndex { get; }
+
+    public int PageCount { get; }
+
+    public bool Completed { get; }
+
+    public DateTimeOffset LastReadAt { get; }
+
+    public string CurrentPageText => PageCount <= 0
+        ? "0 / 0"
+        : $"{Math.Clamp(CurrentPageIndex + 1, 1, PageCount)} / {PageCount}";
+
+    public string LastReadAtText => LastReadAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 }

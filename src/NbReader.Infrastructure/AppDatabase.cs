@@ -70,6 +70,26 @@ public sealed class AppDatabase
                 UNIQUE(volume_id, page_number)
             );
 
+            CREATE TABLE IF NOT EXISTS reading_progress (
+                volume_id INTEGER PRIMARY KEY,
+                current_page INTEGER NOT NULL,
+                max_page_reached INTEGER NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                last_read_at TEXT NOT NULL,
+                reading_mode TEXT NULL,
+                reading_direction TEXT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(volume_id) REFERENCES volume(volume_id) ON DELETE CASCADE,
+                CHECK (current_page >= 0),
+                CHECK (max_page_reached >= 0)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_reading_progress_last_read_at
+            ON reading_progress(last_read_at DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_reading_progress_completed
+            ON reading_progress(completed);
+
             CREATE TABLE IF NOT EXISTS import_task (
                 task_id TEXT PRIMARY KEY,
                 raw_input TEXT NOT NULL,

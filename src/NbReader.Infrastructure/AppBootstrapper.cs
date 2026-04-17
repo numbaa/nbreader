@@ -21,7 +21,8 @@ public static class AppBootstrapper
 
         var seriesQueryService = new SeriesQueryService(database.ConnectionString);
         var volumeQueryService = new VolumeQueryService(database.ConnectionString);
+        var readingProgressService = new ReadingProgressService(database.ConnectionString);
 
-        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService, volumeQueryService);
+        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService, volumeQueryService, readingProgressService);
     }
 }

@@ -10,7 +10,8 @@ public sealed class AppRuntime
         AppDatabase database,
         AppLogger logger,
         SeriesQueryService seriesQueryService,
-        VolumeQueryService volumeQueryService)
+        VolumeQueryService volumeQueryService,
+        ReadingProgressService readingProgressService)
     {
         Settings = settings;
         SettingsStore = settingsStore;
@@ -18,6 +19,7 @@ public sealed class AppRuntime
         Logger = logger;
         SeriesQueryService = seriesQueryService;
         VolumeQueryService = volumeQueryService;
+        ReadingProgressService = readingProgressService;
     }
 
     public AppSettings Settings { get; }
@@ -31,4 +33,6 @@ public sealed class AppRuntime
     public SeriesQueryService SeriesQueryService { get; }
 
     public VolumeQueryService VolumeQueryService { get; }
+
+    public ReadingProgressService ReadingProgressService { get; }
 }
