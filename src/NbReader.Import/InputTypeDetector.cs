@@ -37,7 +37,7 @@ public static class InputTypeDetector
                 return ImportInputKind.ImageDirectory;
             }
 
-            if (fileCount == 0 && dirCount > 0)
+            if (dirCount > 0)
             {
                 return ImportInputKind.SeriesDirectory;
             }
