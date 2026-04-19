@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NbReader.Catalog\NbReader.Catalog.csproj" />
     <ProjectReference Include="..\NbReader.Import\NbReader.Import.csproj" />
+    <ProjectReference Include="..\NbReader.Search\NbReader.Search.csproj" />
   </ItemGroup>
 
 </Project>

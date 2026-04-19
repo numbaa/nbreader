@@ -50,6 +50,54 @@ public sealed class AppDatabase
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS person (
+                person_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                normalized_name TEXT NOT NULL UNIQUE,
+                name_pinyin TEXT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_person_name_pinyin
+            ON person(name_pinyin);
+
+            CREATE TABLE IF NOT EXISTS tag (
+                tag_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                normalized_name TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'user',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(category, normalized_name)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_tag_category
+            ON tag(category);
+
+            CREATE TABLE IF NOT EXISTS series_person (
+                series_id INTEGER NOT NULL,
+                person_id INTEGER NOT NULL,
+                role TEXT NOT NULL DEFAULT 'author',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                source TEXT NULL,
+                PRIMARY KEY (series_id, person_id, role),
+                FOREIGN KEY(series_id) REFERENCES series(series_id) ON DELETE CASCADE,
+                FOREIGN KEY(person_id) REFERENCES person(person_id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_series_person_person_role
+            ON series_person(person_id, role);
+
+            CREATE TABLE IF NOT EXISTS series_tag (
+                series_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                source TEXT NULL,
+                PRIMARY KEY (series_id, tag_id),
+                FOREIGN KEY(series_id) REFERENCES series(series_id) ON DELETE CASCADE,
+                FOREIGN KEY(tag_id) REFERENCES tag(tag_id) ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS volume (
                 volume_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_id INTEGER NOT NULL,

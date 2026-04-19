@@ -1,4 +1,5 @@
 using NbReader.Catalog;
+using NbReader.Search;
 
 namespace NbReader.Infrastructure;
 
@@ -10,6 +11,7 @@ public sealed class AppRuntime
         AppDatabase database,
         AppLogger logger,
         SeriesQueryService seriesQueryService,
+        SeriesSearchService seriesSearchService,
         VolumeQueryService volumeQueryService,
         ReadingProgressService readingProgressService)
     {
@@ -18,6 +20,7 @@ public sealed class AppRuntime
         Database = database;
         Logger = logger;
         SeriesQueryService = seriesQueryService;
+        SeriesSearchService = seriesSearchService;
         VolumeQueryService = volumeQueryService;
         ReadingProgressService = readingProgressService;
     }
@@ -31,6 +34,8 @@ public sealed class AppRuntime
     public AppLogger Logger { get; }
 
     public SeriesQueryService SeriesQueryService { get; }
+
+    public SeriesSearchService SeriesSearchService { get; }
 
     public VolumeQueryService VolumeQueryService { get; }
 

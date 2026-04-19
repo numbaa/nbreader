@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using NbReader.Catalog;
 using NbReader.Infrastructure;
 using NbReader.Reader;
+using NbReader.Search;
 
 namespace NbReader.App.ViewModels;
 
@@ -51,7 +52,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "书架与阅读闭环 - M4（双页模式、方向切换与配对规则）";
+    public string Subtitle => "搜索与整理闭环 - M1（结构化查询与搜索服务骨架）";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [
@@ -379,7 +380,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         StatusMessage = "正在加载系列列表...";
 
-        var items = await Runtime.SeriesQueryService.GetSeriesListAsync(cancellationToken: cancellationToken);
+        var items = await Runtime.SeriesSearchService.SearchAsync(
+            new SeriesSearchQuery(
+                SortBy: SeriesSearchSortBy.LatestUpdatedDesc,
+                Limit: 200),
+            cancellationToken);
 
         SeriesCards.Clear();
         foreach (var item in items)
