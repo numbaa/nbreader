@@ -42,7 +42,12 @@ public sealed class SeriesSearchService
         {
             sql.Append(
                 """
-                  AND (s.title LIKE $titleLike OR s.normalized_title LIKE $titleLike)
+                                    AND EXISTS (
+                                                SELECT 1
+                                                FROM series_fts sf
+                                                WHERE sf.rowid = s.series_id
+                                                    AND series_fts MATCH $titleMatch
+                                    )
                 """);
         }
 
@@ -53,9 +58,9 @@ public sealed class SeriesSearchService
                   AND EXISTS (
                         SELECT 1
                         FROM series_person sp
-                        INNER JOIN person p ON p.person_id = sp.person_id
+                                                INNER JOIN person_fts pf ON pf.rowid = sp.person_id
                         WHERE sp.series_id = s.series_id
-                          AND (p.name LIKE $authorLike OR p.normalized_name LIKE $authorLike)
+                                                    AND person_fts MATCH $authorMatch
                   )
                 """);
         }
@@ -119,12 +124,12 @@ public sealed class SeriesSearchService
 
         if (!string.IsNullOrWhiteSpace(query.TitleKeyword))
         {
-            command.Parameters.AddWithValue("$titleLike", BuildLikePattern(query.TitleKeyword));
+            command.Parameters.AddWithValue("$titleMatch", BuildFtsMatchQuery(query.TitleKeyword));
         }
 
         if (!string.IsNullOrWhiteSpace(query.AuthorKeyword))
         {
-            command.Parameters.AddWithValue("$authorLike", BuildLikePattern(query.AuthorKeyword));
+            command.Parameters.AddWithValue("$authorMatch", BuildFtsMatchQuery(query.AuthorKeyword));
         }
 
         if (!string.IsNullOrWhiteSpace(query.TagKeyword))
@@ -158,6 +163,24 @@ public sealed class SeriesSearchService
         }
 
         return rows;
+    }
+
+    private static string BuildFtsMatchQuery(string keyword)
+    {
+        var trimmed = keyword.Trim();
+        var terms = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (terms.Length == 0)
+        {
+            return QuoteFtsPhrase(trimmed);
+        }
+
+        return string.Join(" AND ", terms.Select(QuoteFtsPhrase));
+    }
+
+    private static string QuoteFtsPhrase(string term)
+    {
+        var escaped = term.Replace("\"", "\"\"");
+        return $"\"{escaped}\"";
     }
 
     private static string BuildLikePattern(string keyword)

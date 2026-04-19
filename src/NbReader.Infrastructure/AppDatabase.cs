@@ -169,6 +169,17 @@ public sealed class AppDatabase
         command.ExecuteNonQuery();
 
         EnsureColumnExists(connection, "volume", "series_id", "INTEGER NULL");
+        EnsureColumnExists(connection, "series", "title_pinyin", "TEXT NULL");
+
+        EnsureSearchIndexSchema(connection);
+        RebuildSearchIndexes(connection);
+    }
+
+    public void RebuildSearchIndexes()
+    {
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+        RebuildSearchIndexes(connection);
     }
 
     private static void EnsureColumnExists(SqliteConnection connection, string tableName, string columnName, string columnTypeDeclaration)
@@ -198,6 +209,94 @@ public sealed class AppDatabase
         using var alter = connection.CreateCommand();
         alter.CommandText = $"ALTER TABLE {tableName} ADD COLUMN {columnName} {columnTypeDeclaration};";
         alter.ExecuteNonQuery();
+    }
+
+    private static void EnsureSearchIndexSchema(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE VIRTUAL TABLE IF NOT EXISTS series_fts
+            USING fts5(
+                title,
+                normalized_title,
+                title_pinyin,
+                tokenize = 'unicode61'
+            );
+
+            CREATE VIRTUAL TABLE IF NOT EXISTS person_fts
+            USING fts5(
+                name,
+                normalized_name,
+                name_pinyin,
+                tokenize = 'unicode61'
+            );
+
+            CREATE TRIGGER IF NOT EXISTS trg_series_ai
+            AFTER INSERT ON series
+            BEGIN
+                INSERT INTO series_fts(rowid, title, normalized_title, title_pinyin)
+                VALUES (new.series_id, new.title, new.normalized_title, COALESCE(new.title_pinyin, ''));
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS trg_series_au
+            AFTER UPDATE OF title, normalized_title, title_pinyin ON series
+            BEGIN
+                DELETE FROM series_fts WHERE rowid = old.series_id;
+                INSERT INTO series_fts(rowid, title, normalized_title, title_pinyin)
+                VALUES (new.series_id, new.title, new.normalized_title, COALESCE(new.title_pinyin, ''));
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS trg_series_ad
+            AFTER DELETE ON series
+            BEGIN
+                DELETE FROM series_fts WHERE rowid = old.series_id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS trg_person_ai
+            AFTER INSERT ON person
+            BEGIN
+                INSERT INTO person_fts(rowid, name, normalized_name, name_pinyin)
+                VALUES (new.person_id, new.name, new.normalized_name, COALESCE(new.name_pinyin, ''));
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS trg_person_au
+            AFTER UPDATE OF name, normalized_name, name_pinyin ON person
+            BEGIN
+                DELETE FROM person_fts WHERE rowid = old.person_id;
+                INSERT INTO person_fts(rowid, name, normalized_name, name_pinyin)
+                VALUES (new.person_id, new.name, new.normalized_name, COALESCE(new.name_pinyin, ''));
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS trg_person_ad
+            AFTER DELETE ON person
+            BEGIN
+                DELETE FROM person_fts WHERE rowid = old.person_id;
+            END;
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void RebuildSearchIndexes(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE series
+            SET title_pinyin = COALESCE(NULLIF(title_pinyin, ''), normalized_title);
+
+            UPDATE person
+            SET name_pinyin = COALESCE(NULLIF(name_pinyin, ''), normalized_name);
+
+            DELETE FROM series_fts;
+            INSERT INTO series_fts(rowid, title, normalized_title, title_pinyin)
+            SELECT series_id, title, normalized_title, COALESCE(title_pinyin, '')
+            FROM series;
+
+            DELETE FROM person_fts;
+            INSERT INTO person_fts(rowid, name, normalized_name, name_pinyin)
+            SELECT person_id, name, normalized_name, COALESCE(name_pinyin, '')
+            FROM person;
+            """;
+        command.ExecuteNonQuery();
     }
 
     public string? ReadMetaValue(string key)

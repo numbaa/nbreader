@@ -52,7 +52,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "搜索与整理闭环 - M1（结构化查询与搜索服务骨架）";
+    public string Subtitle => "搜索与整理闭环 - M2（FTS 与拼音索引）";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [

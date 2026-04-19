@@ -82,18 +82,97 @@ public sealed class SeriesSearchServiceTests
         }
     }
 
-    private static long InsertSeries(string connectionString, string title, string createdAt)
+    [Fact]
+    public async Task SearchAsync_ShouldMatchPinyin_ForTitleAndAuthor()
+    {
+        var dbPath = CreateTempDbPath();
+
+        try
+        {
+            var database = new AppDatabase(dbPath);
+            database.Initialize();
+
+            var seriesId = InsertSeries(
+                database.ConnectionString,
+                "进击的巨人",
+                "2024-01-01T00:00:00Z",
+                titlePinyin: "jin ji de ju ren");
+            var volumeId = InsertVolume(database.ConnectionString, seriesId, "Vol.01", "2024-02-10T00:00:00Z");
+
+            var personId = InsertPerson(database.ConnectionString, "田野", namePinyin: "tian ye");
+            LinkSeriesPerson(database.ConnectionString, seriesId, personId, "author");
+            InsertReadingProgress(database.ConnectionString, volumeId, completed: false);
+
+            database.RebuildSearchIndexes();
+
+            var service = new SeriesSearchService(database.ConnectionString);
+            var results = await service.SearchAsync(new SeriesSearchQuery(
+                TitleKeyword: "jin ji",
+                AuthorKeyword: "tian",
+                SortBy: SeriesSearchSortBy.LatestUpdatedDesc));
+
+            Assert.Single(results);
+            Assert.Equal(seriesId, results[0].SeriesId);
+        }
+        finally
+        {
+            CleanupDatabaseFiles(dbPath);
+        }
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldFollowFtsTriggers_WhenPinyinUpdated()
+    {
+        var dbPath = CreateTempDbPath();
+
+        try
+        {
+            var database = new AppDatabase(dbPath);
+            database.Initialize();
+
+            var seriesId = InsertSeries(
+                database.ConnectionString,
+                "蓝海",
+                "2024-01-01T00:00:00Z",
+                titlePinyin: "lan hai");
+            var volumeId = InsertVolume(database.ConnectionString, seriesId, "Vol.01", "2024-02-10T00:00:00Z");
+            var personId = InsertPerson(database.ConnectionString, "林风", namePinyin: "lin feng");
+            LinkSeriesPerson(database.ConnectionString, seriesId, personId, "author");
+            InsertReadingProgress(database.ConnectionString, volumeId, completed: false);
+
+            var service = new SeriesSearchService(database.ConnectionString);
+            var initial = await service.SearchAsync(new SeriesSearchQuery(TitleKeyword: "lan"));
+            Assert.Single(initial);
+
+            UpdateSeriesPinyin(database.ConnectionString, seriesId, "cang hai");
+            UpdatePersonPinyin(database.ConnectionString, personId, "cang mu");
+
+            var oldTerm = await service.SearchAsync(new SeriesSearchQuery(TitleKeyword: "lan"));
+            var newTerm = await service.SearchAsync(new SeriesSearchQuery(TitleKeyword: "cang", AuthorKeyword: "cang"));
+
+            Assert.Empty(oldTerm);
+            Assert.Single(newTerm);
+            Assert.Equal(seriesId, newTerm[0].SeriesId);
+        }
+        finally
+        {
+            CleanupDatabaseFiles(dbPath);
+        }
+    }
+
+    private static long InsertSeries(string connectionString, string title, string createdAt, string? titlePinyin = null)
     {
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
 
         using var insert = connection.CreateCommand();
         insert.CommandText = """
-            INSERT INTO series (title, normalized_title, created_at)
-            VALUES ($title, $normalizedTitle, $createdAt);
+            INSERT INTO series (title, normalized_title, title_pinyin, created_at)
+            VALUES ($title, $normalizedTitle, $titlePinyin, $createdAt);
             """;
         insert.Parameters.AddWithValue("$title", title);
         insert.Parameters.AddWithValue("$normalizedTitle", title.Trim().ToLowerInvariant());
+        insert.Parameters.AddWithValue("$titlePinyin", titlePinyin ?? string.Empty);
         insert.Parameters.AddWithValue("$createdAt", createdAt);
         insert.ExecuteNonQuery();
 
@@ -146,18 +225,19 @@ public sealed class SeriesSearchServiceTests
         return Convert.ToInt64(lastId.ExecuteScalar());
     }
 
-    private static long InsertPerson(string connectionString, string name)
+    private static long InsertPerson(string connectionString, string name, string? namePinyin = null)
     {
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
 
         using var insert = connection.CreateCommand();
         insert.CommandText = """
-            INSERT INTO person (name, normalized_name)
-            VALUES ($name, $normalizedName);
+            INSERT INTO person (name, normalized_name, name_pinyin)
+            VALUES ($name, $normalizedName, $namePinyin);
             """;
         insert.Parameters.AddWithValue("$name", name);
         insert.Parameters.AddWithValue("$normalizedName", name.Trim().ToLowerInvariant());
+        insert.Parameters.AddWithValue("$namePinyin", namePinyin ?? string.Empty);
         insert.ExecuteNonQuery();
 
         using var lastId = connection.CreateCommand();
@@ -229,6 +309,30 @@ public sealed class SeriesSearchServiceTests
         insert.Parameters.AddWithValue("$volumeId", volumeId);
         insert.Parameters.AddWithValue("$completed", completed ? 1 : 0);
         insert.ExecuteNonQuery();
+    }
+
+    private static void UpdateSeriesPinyin(string connectionString, long seriesId, string pinyin)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE series SET title_pinyin = $titlePinyin WHERE series_id = $seriesId;";
+        command.Parameters.AddWithValue("$titlePinyin", pinyin);
+        command.Parameters.AddWithValue("$seriesId", seriesId);
+        command.ExecuteNonQuery();
+    }
+
+    private static void UpdatePersonPinyin(string connectionString, long personId, string pinyin)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE person SET name_pinyin = $namePinyin WHERE person_id = $personId;";
+        command.Parameters.AddWithValue("$namePinyin", pinyin);
+        command.Parameters.AddWithValue("$personId", personId);
+        command.ExecuteNonQuery();
     }
 
     private static string CreateTempDbPath()
