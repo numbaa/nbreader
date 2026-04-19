@@ -13,6 +13,7 @@ public sealed class AppRuntime
         SeriesQueryService seriesQueryService,
         SeriesSearchService seriesSearchService,
         LibraryMaintenanceService libraryMaintenanceService,
+        SeriesCorrectionService seriesCorrectionService,
         VolumeQueryService volumeQueryService,
         ReadingProgressService readingProgressService)
     {
@@ -23,6 +24,7 @@ public sealed class AppRuntime
         SeriesQueryService = seriesQueryService;
         SeriesSearchService = seriesSearchService;
         LibraryMaintenanceService = libraryMaintenanceService;
+        SeriesCorrectionService = seriesCorrectionService;
         VolumeQueryService = volumeQueryService;
         ReadingProgressService = readingProgressService;
     }
@@ -40,6 +42,8 @@ public sealed class AppRuntime
     public SeriesSearchService SeriesSearchService { get; }
 
     public LibraryMaintenanceService LibraryMaintenanceService { get; }
+
+    public SeriesCorrectionService SeriesCorrectionService { get; }
 
     public VolumeQueryService VolumeQueryService { get; }
 

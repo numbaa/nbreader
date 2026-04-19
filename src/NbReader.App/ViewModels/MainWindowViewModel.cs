@@ -24,6 +24,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _isLoadingVolumes;
     private bool _isLoadingSearchWorkspace;
     private string _searchWorkspaceSummary = "未加载整理视图。";
+    private string _seriesRenameInput = string.Empty;
+    private string _volumeNumberInput = string.Empty;
+    private SeriesMergeTargetItemViewModel? _selectedMergeTargetSeries;
     private long _selectedSeriesIdForDetail;
     private Bitmap? _readerPreviewImage;
     private Bitmap? _readerLeftPageImage;
@@ -55,7 +58,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "搜索与整理闭环 - M3（未整理与导入失败视图）";
+    public string Subtitle => "搜索与整理闭环 - M4（基础系列修正能力）";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [
@@ -76,6 +79,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<UnorganizedVolumeItemViewModel> UnorganizedVolumes { get; } = [];
 
     public ObservableCollection<FailedImportTaskItemViewModel> FailedImportTasks { get; } = [];
+
+    public ObservableCollection<SeriesMergeTargetItemViewModel> MergeTargetSeriesOptions { get; } = [];
 
     public string SelectedNavigation
     {
@@ -135,15 +140,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (_selectedSeries is not null)
             {
                 StatusMessage = $"已选择系列：{_selectedSeries.Title}（{_selectedSeries.VolumeCount} 卷），正在加载卷列表。";
+                SeriesRenameInput = _selectedSeries.Title;
                 _selectedSeriesIdForDetail = _selectedSeries.SeriesId;
                 _ = LoadVolumesForSelectedSeriesAsync(_selectedSeries.SeriesId);
             }
             else
             {
                 SeriesDetailTitle = "请选择一个系列查看卷列表。";
+                SeriesRenameInput = string.Empty;
                 VolumeCards.Clear();
                 SelectedVolume = null;
             }
+
+            OnPropertyChanged(nameof(CanMergeSelectedSeries));
+            OnPropertyChanged(nameof(CanApplySeriesRename));
         }
     }
 
@@ -158,8 +168,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             }
 
             _selectedVolume = value;
+            VolumeNumberInput = _selectedVolume?.VolumeNumber?.ToString() ?? string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanOpenSelectedVolume));
+            OnPropertyChanged(nameof(CanApplyVolumeNumberCorrection));
         }
     }
 
@@ -292,6 +304,62 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool CanRetrySelectedFailedImportTask => SelectedFailedImportTask is not null;
+
+    public string SeriesRenameInput
+    {
+        get => _seriesRenameInput;
+        set
+        {
+            if (_seriesRenameInput == value)
+            {
+                return;
+            }
+
+            _seriesRenameInput = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanApplySeriesRename));
+        }
+    }
+
+    public bool CanApplySeriesRename => SelectedSeries is not null && !string.IsNullOrWhiteSpace(SeriesRenameInput);
+
+    public string VolumeNumberInput
+    {
+        get => _volumeNumberInput;
+        set
+        {
+            if (_volumeNumberInput == value)
+            {
+                return;
+            }
+
+            _volumeNumberInput = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanApplyVolumeNumberCorrection));
+        }
+    }
+
+    public bool CanApplyVolumeNumberCorrection => SelectedVolume is not null;
+
+    public SeriesMergeTargetItemViewModel? SelectedMergeTargetSeries
+    {
+        get => _selectedMergeTargetSeries;
+        set
+        {
+            if (_selectedMergeTargetSeries == value)
+            {
+                return;
+            }
+
+            _selectedMergeTargetSeries = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanMergeSelectedSeries));
+        }
+    }
+
+    public bool CanMergeSelectedSeries => SelectedSeries is not null
+        && SelectedMergeTargetSeries is not null
+        && SelectedMergeTargetSeries.SeriesId != SelectedSeries.SeriesId;
 
     public Bitmap? ReaderPreviewImage
     {
@@ -530,6 +598,106 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         await LoadSearchWorkspaceAsync(cancellationToken);
     }
 
+    public async Task ApplySeriesRenameAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedSeries is null)
+        {
+            StatusMessage = "请先选择一个系列。";
+            return;
+        }
+
+        var newTitle = SeriesRenameInput.Trim();
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            StatusMessage = "系列名不能为空。";
+            return;
+        }
+
+        var changed = await Runtime.SeriesCorrectionService.RenameSeriesAsync(SelectedSeries.SeriesId, newTitle, cancellationToken);
+        if (!changed)
+        {
+            StatusMessage = "系列改名失败：记录不存在或名称无效。";
+            return;
+        }
+
+        await ReloadCatalogSelectionAsync(SelectedSeries.SeriesId, cancellationToken);
+        StatusMessage = $"系列已改名为：{newTitle}";
+    }
+
+    public async Task MergeSelectedSeriesAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedSeries is null || SelectedMergeTargetSeries is null)
+        {
+            StatusMessage = "请先选择源系列和目标系列。";
+            return;
+        }
+
+        if (SelectedSeries.SeriesId == SelectedMergeTargetSeries.SeriesId)
+        {
+            StatusMessage = "源系列与目标系列不能相同。";
+            return;
+        }
+
+        var sourceId = SelectedSeries.SeriesId;
+        var targetId = SelectedMergeTargetSeries.SeriesId;
+        var sourceTitle = SelectedSeries.Title;
+        var targetTitle = SelectedMergeTargetSeries.Title;
+
+        var merged = await Runtime.SeriesCorrectionService.MergeSeriesAsync(sourceId, targetId, cancellationToken);
+        if (!merged)
+        {
+            StatusMessage = "系列合并失败：请检查系列是否仍存在。";
+            return;
+        }
+
+        await ReloadCatalogSelectionAsync(targetId, cancellationToken);
+        StatusMessage = $"已将“{sourceTitle}”合并到“{targetTitle}”。";
+    }
+
+    public async Task ApplySelectedVolumeNumberCorrectionAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedVolume is null)
+        {
+            StatusMessage = "请先选择一个卷。";
+            return;
+        }
+
+        int? volumeNumber = null;
+        var input = VolumeNumberInput.Trim();
+        if (!string.IsNullOrWhiteSpace(input))
+        {
+            if (!int.TryParse(input, out var parsed) || parsed <= 0)
+            {
+                StatusMessage = "卷号格式无效，请输入正整数或留空清除。";
+                return;
+            }
+
+            volumeNumber = parsed;
+        }
+
+        var currentSeriesId = SelectedSeries?.SeriesId;
+        var volumeId = SelectedVolume.VolumeId;
+        var updated = await Runtime.SeriesCorrectionService.UpdateVolumeNumberAsync(volumeId, volumeNumber, cancellationToken);
+        if (!updated)
+        {
+            StatusMessage = "卷号修正失败：卷记录不存在。";
+            return;
+        }
+
+        if (currentSeriesId is long seriesId)
+        {
+            await LoadVolumesForSelectedSeriesAsync(seriesId, cancellationToken);
+            var updatedVolume = VolumeCards.FirstOrDefault(v => v.VolumeId == volumeId);
+            if (updatedVolume is not null)
+            {
+                SelectedVolume = updatedVolume;
+            }
+        }
+
+        var shownNumber = volumeNumber?.ToString() ?? "(空)";
+        StatusMessage = $"卷号修正完成：{shownNumber}";
+    }
+
     public void FlushReadingProgress()
     {
         _ = PersistReadingProgressAsync(force: true);
@@ -701,6 +869,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 FailedImportTasks.Add(new FailedImportTaskItemViewModel(row));
             }
 
+            await ReloadMergeTargetSeriesOptionsAsync(cancellationToken);
+
             SelectedFailedImportTask = FailedImportTasks.Count > 0 ? FailedImportTasks[0] : null;
             SearchWorkspaceSummary = $"未整理 {UnorganizedVolumes.Count} 条，导入失败 {FailedImportTasks.Count} 条。";
             StatusMessage = "搜索整理视图已更新。";
@@ -762,6 +932,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                     volume.VolumeId,
                     volume.SeriesId,
                     volume.Title,
+                    volume.VolumeNumber,
                     volume.PageCount,
                     volume.CreatedAt));
             }
@@ -1091,6 +1262,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             $"已从系列“{seriesTitle}”打开卷“{volumeTitle}”，共 {_readerState.TotalPages} 页，模式：{ReaderDisplayModeLabel}，方向：{ReaderDirectionLabel}，当前页：{ReaderPageIndicator}。";
     }
 
+    private async Task ReloadCatalogSelectionAsync(long preferredSeriesId, CancellationToken cancellationToken)
+    {
+        await LoadSeriesAsync(cancellationToken);
+        var targetSeries = SeriesCards.FirstOrDefault(card => card.SeriesId == preferredSeriesId)
+            ?? SeriesCards.FirstOrDefault();
+
+        if (targetSeries is not null)
+        {
+            SelectedSeries = targetSeries;
+        }
+
+        await ReloadMergeTargetSeriesOptionsAsync(cancellationToken);
+    }
+
+    private async Task ReloadMergeTargetSeriesOptionsAsync(CancellationToken cancellationToken)
+    {
+        var rows = await Runtime.SeriesSearchService.SearchAsync(
+            new SeriesSearchQuery(SortBy: SeriesSearchSortBy.TitleAsc, Limit: 500),
+            cancellationToken);
+
+        MergeTargetSeriesOptions.Clear();
+        foreach (var row in rows)
+        {
+            MergeTargetSeriesOptions.Add(new SeriesMergeTargetItemViewModel(row.SeriesId, row.Title, row.VolumeCount));
+        }
+
+        var selectedSeriesId = SelectedSeries?.SeriesId;
+        SelectedMergeTargetSeries = MergeTargetSeriesOptions.FirstOrDefault(option => option.SeriesId != selectedSeriesId)
+            ?? MergeTargetSeriesOptions.FirstOrDefault();
+        OnPropertyChanged(nameof(CanMergeSelectedSeries));
+    }
+
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -1120,11 +1323,12 @@ public sealed class SeriesCardViewModel
 
 public sealed class VolumeCardViewModel
 {
-    public VolumeCardViewModel(long volumeId, long seriesId, string title, int pageCount, DateTimeOffset createdAt)
+    public VolumeCardViewModel(long volumeId, long seriesId, string title, int? volumeNumber, int pageCount, DateTimeOffset createdAt)
     {
         VolumeId = volumeId;
         SeriesId = seriesId;
         Title = title;
+        VolumeNumber = volumeNumber;
         PageCount = pageCount;
         CreatedAt = createdAt;
     }
@@ -1135,11 +1339,15 @@ public sealed class VolumeCardViewModel
 
     public string Title { get; }
 
+    public int? VolumeNumber { get; }
+
     public int PageCount { get; }
 
     public DateTimeOffset CreatedAt { get; }
 
     public string CreatedAtText => CreatedAt.ToLocalTime().ToString("yyyy-MM-dd");
+
+    public string VolumeNumberText => VolumeNumber is int number ? number.ToString() : "(未设置)";
 }
 
 public sealed class RecentReadingItemViewModel
@@ -1232,4 +1440,22 @@ public sealed class FailedImportTaskItemViewModel
     public string ErrorText => string.IsNullOrWhiteSpace(LastErrorMessage)
         ? "(无错误详情)"
         : LastErrorMessage;
+}
+
+public sealed class SeriesMergeTargetItemViewModel
+{
+    public SeriesMergeTargetItemViewModel(long seriesId, string title, int volumeCount)
+    {
+        SeriesId = seriesId;
+        Title = title;
+        VolumeCount = volumeCount;
+    }
+
+    public long SeriesId { get; }
+
+    public string Title { get; }
+
+    public int VolumeCount { get; }
+
+    public string DisplayText => $"{Title}（{VolumeCount} 卷）";
 }

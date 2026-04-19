@@ -151,6 +151,60 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnSearchApplySeriesRenameClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.ApplySeriesRenameAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"系列改名失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to apply series rename.", ex);
+        }
+    }
+
+    private async void OnSearchMergeSeriesClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.MergeSelectedSeriesAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"系列合并失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to merge series.", ex);
+        }
+    }
+
+    private async void OnSearchApplyVolumeNumberClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.ApplySelectedVolumeNumberCorrectionAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"卷号修正失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to apply volume number correction.", ex);
+        }
+    }
+
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         _viewModel?.FlushReadingProgress();

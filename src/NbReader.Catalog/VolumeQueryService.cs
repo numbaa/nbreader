@@ -27,13 +27,17 @@ public sealed class VolumeQueryService
             SELECT v.volume_id,
                    v.series_id,
                    v.title,
-                   COUNT(p.page_id) AS page_count,
+                 v.volume_number,
+                 COUNT(p.page_id) AS page_count,
                    v.created_at
             FROM volume v
             LEFT JOIN page p ON p.volume_id = v.volume_id
             WHERE v.series_id = $seriesId
-            GROUP BY v.volume_id, v.series_id, v.title, v.created_at
-            ORDER BY v.created_at ASC, v.volume_id ASC;
+             GROUP BY v.volume_id, v.series_id, v.title, v.volume_number, v.created_at
+             ORDER BY CASE WHEN v.volume_number IS NULL THEN 1 ELSE 0 END ASC,
+                v.volume_number ASC,
+                v.created_at ASC,
+                v.volume_id ASC;
             """;
         command.Parameters.AddWithValue("$seriesId", seriesId);
 
@@ -41,12 +45,13 @@ public sealed class VolumeQueryService
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            var createdAtText = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+            var createdAtText = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
             rows.Add(new VolumeOverview(
                 VolumeId: reader.GetInt64(0),
                 SeriesId: reader.GetInt64(1),
                 Title: reader.GetString(2),
-                PageCount: reader.GetInt32(3),
+                VolumeNumber: reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                PageCount: reader.GetInt32(4),
                 CreatedAt: ParseSqliteTimestampOrNow(createdAtText)));
         }
 

@@ -169,6 +169,7 @@ public sealed class AppDatabase
         command.ExecuteNonQuery();
 
         EnsureColumnExists(connection, "volume", "series_id", "INTEGER NULL");
+        EnsureColumnExists(connection, "volume", "volume_number", "INTEGER NULL");
         EnsureColumnExists(connection, "series", "title_pinyin", "TEXT NULL");
 
         EnsureSearchIndexSchema(connection);

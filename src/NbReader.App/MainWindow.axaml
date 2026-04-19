@@ -150,6 +150,8 @@
                                                            FontWeight="SemiBold" />
                                                 <TextBlock Text="{Binding PageCount, StringFormat='页数：{0}'}"
                                                            Foreground="#64748B" />
+                                                <TextBlock Text="{Binding VolumeNumberText, StringFormat='卷号：{0}'}"
+                                                           Foreground="#64748B" />
                                                 <TextBlock Text="{Binding CreatedAtText, StringFormat='导入时间：{0}'}"
                                                            FontSize="12"
                                                            Foreground="#94A3B8" />
@@ -305,9 +307,9 @@
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="20">
-                <Grid RowDefinitions="Auto,Auto,Auto,*"
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,*"
                       RowSpacing="10">
-                    <TextBlock Text="搜索整理工作台（M3）"
+                                        <TextBlock Text="搜索整理工作台（M4）"
                                FontSize="20"
                                FontWeight="SemiBold" />
                     <TextBlock Grid.Row="1"
@@ -327,7 +329,65 @@
                                    Foreground="#64748B" />
                     </StackPanel>
 
-                    <Grid Grid.Row="3"
+                    <Border Grid.Row="3"
+                            Background="#FFFFFF"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="12">
+                        <Grid ColumnDefinitions="*,*,*"
+                              ColumnSpacing="10">
+                            <StackPanel Grid.Column="0"
+                                        Spacing="6">
+                                <TextBlock Text="系列改名"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="当前选中 Catalog 中的系列。"
+                                           Foreground="#64748B"
+                                           FontSize="12" />
+                                <TextBox Text="{Binding SeriesRenameInput, Mode=TwoWay}" />
+                                <Button Content="应用改名"
+                                        IsEnabled="{Binding CanApplySeriesRename}"
+                                        Click="OnSearchApplySeriesRenameClick" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1"
+                                        Spacing="6">
+                                <TextBlock Text="系列合并"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="将当前选中系列合并到目标系列。"
+                                           Foreground="#64748B"
+                                           FontSize="12" />
+                                <ComboBox ItemsSource="{Binding MergeTargetSeriesOptions}"
+                                          SelectedItem="{Binding SelectedMergeTargetSeries, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="viewModels:SeriesMergeTargetItemViewModel">
+                                            <TextBlock Text="{Binding DisplayText}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="执行合并"
+                                        IsEnabled="{Binding CanMergeSelectedSeries}"
+                                        Click="OnSearchMergeSeriesClick" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2"
+                                        Spacing="6">
+                                <TextBlock Text="卷号修正"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="当前选中 Catalog 中的卷，留空可清除卷号。"
+                                           Foreground="#64748B"
+                                           FontSize="12"
+                                           TextWrapping="Wrap" />
+                                <TextBox Text="{Binding VolumeNumberInput, Mode=TwoWay}"
+                                     PlaceholderText="例如 1" />
+                                <Button Content="应用卷号"
+                                        IsEnabled="{Binding CanApplyVolumeNumberCorrection}"
+                                        Click="OnSearchApplyVolumeNumberClick" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="4"
                           ColumnDefinitions="*,*"
                           ColumnSpacing="12">
                         <Border Grid.Column="0"
