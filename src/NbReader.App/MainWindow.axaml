@@ -335,7 +335,7 @@
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="12">
-                        <Grid ColumnDefinitions="*,*,*"
+                        <Grid ColumnDefinitions="*,*,*,*"
                               ColumnSpacing="10">
                             <StackPanel Grid.Column="0"
                                         Spacing="6">
@@ -383,6 +383,22 @@
                                 <Button Content="应用卷号"
                                         IsEnabled="{Binding CanApplyVolumeNumberCorrection}"
                                         Click="OnSearchApplyVolumeNumberClick" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="3"
+                                        Spacing="6">
+                                <TextBlock Text="作者与标签编辑"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="编辑当前选中系列，使用逗号分隔。"
+                                           Foreground="#64748B"
+                                           FontSize="12" />
+                                <TextBox Text="{Binding AuthorNamesInput, Mode=TwoWay}"
+                                         PlaceholderText="作者1, 作者2" />
+                                <TextBox Text="{Binding TagNamesInput, Mode=TwoWay}"
+                                         PlaceholderText="标签1, 标签2" />
+                                <Button Content="应用作者/标签"
+                                        IsEnabled="{Binding CanApplySeriesMetadata}"
+                                        Click="OnSearchApplySeriesMetadataClick" />
                             </StackPanel>
                         </Grid>
                     </Border>

@@ -205,6 +205,24 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnSearchApplySeriesMetadataClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.ApplySeriesMetadataAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"作者/标签更新失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to apply series metadata edits.", ex);
+        }
+    }
+
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         _viewModel?.FlushReadingProgress();

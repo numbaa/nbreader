@@ -26,6 +26,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _searchWorkspaceSummary = "未加载整理视图。";
     private string _seriesRenameInput = string.Empty;
     private string _volumeNumberInput = string.Empty;
+    private string _authorNamesInput = string.Empty;
+    private string _tagNamesInput = string.Empty;
     private SeriesMergeTargetItemViewModel? _selectedMergeTargetSeries;
     private long _selectedSeriesIdForDetail;
     private Bitmap? _readerPreviewImage;
@@ -141,6 +143,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             {
                 StatusMessage = $"已选择系列：{_selectedSeries.Title}（{_selectedSeries.VolumeCount} 卷），正在加载卷列表。";
                 SeriesRenameInput = _selectedSeries.Title;
+                _ = LoadSelectedSeriesMetadataAsync(_selectedSeries.SeriesId);
                 _selectedSeriesIdForDetail = _selectedSeries.SeriesId;
                 _ = LoadVolumesForSelectedSeriesAsync(_selectedSeries.SeriesId);
             }
@@ -148,12 +151,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             {
                 SeriesDetailTitle = "请选择一个系列查看卷列表。";
                 SeriesRenameInput = string.Empty;
+                AuthorNamesInput = string.Empty;
+                TagNamesInput = string.Empty;
                 VolumeCards.Clear();
                 SelectedVolume = null;
             }
 
             OnPropertyChanged(nameof(CanMergeSelectedSeries));
             OnPropertyChanged(nameof(CanApplySeriesRename));
+            OnPropertyChanged(nameof(CanApplySeriesMetadata));
         }
     }
 
@@ -360,6 +366,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool CanMergeSelectedSeries => SelectedSeries is not null
         && SelectedMergeTargetSeries is not null
         && SelectedMergeTargetSeries.SeriesId != SelectedSeries.SeriesId;
+
+    public string AuthorNamesInput
+    {
+        get => _authorNamesInput;
+        set
+        {
+            if (_authorNamesInput == value)
+            {
+                return;
+            }
+
+            _authorNamesInput = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string TagNamesInput
+    {
+        get => _tagNamesInput;
+        set
+        {
+            if (_tagNamesInput == value)
+            {
+                return;
+            }
+
+            _tagNamesInput = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool CanApplySeriesMetadata => SelectedSeries is not null;
 
     public Bitmap? ReaderPreviewImage
     {
@@ -696,6 +734,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         var shownNumber = volumeNumber?.ToString() ?? "(空)";
         StatusMessage = $"卷号修正完成：{shownNumber}";
+    }
+
+    public async Task ApplySeriesMetadataAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedSeries is null)
+        {
+            StatusMessage = "请先选择一个系列。";
+            return;
+        }
+
+        var authors = ParseCsvItems(AuthorNamesInput);
+        var tags = ParseCsvItems(TagNamesInput);
+
+        var changed = await Runtime.SeriesMetadataEditService.ReplaceSeriesMetadataAsync(
+            SelectedSeries.SeriesId,
+            authors,
+            tags,
+            cancellationToken);
+
+        if (!changed)
+        {
+            StatusMessage = "作者/标签更新失败：系列不存在。";
+            return;
+        }
+
+        await LoadSelectedSeriesMetadataAsync(SelectedSeries.SeriesId, cancellationToken);
+        await ReloadCatalogSelectionAsync(SelectedSeries.SeriesId, cancellationToken);
+        StatusMessage = "作者与标签已更新。";
     }
 
     public void FlushReadingProgress()
@@ -1292,6 +1358,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         SelectedMergeTargetSeries = MergeTargetSeriesOptions.FirstOrDefault(option => option.SeriesId != selectedSeriesId)
             ?? MergeTargetSeriesOptions.FirstOrDefault();
         OnPropertyChanged(nameof(CanMergeSelectedSeries));
+    }
+
+    private async Task LoadSelectedSeriesMetadataAsync(long seriesId, CancellationToken cancellationToken = default)
+    {
+        var snapshot = await Runtime.SeriesMetadataEditService.GetSeriesMetadataAsync(seriesId, cancellationToken);
+        AuthorNamesInput = string.Join(", ", snapshot.Authors);
+        TagNamesInput = string.Join(", ", snapshot.Tags);
+    }
+
+    private static IReadOnlyList<string> ParseCsvItems(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        return text
+            .Split([',', '，', ';', '；', '|', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(static item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
