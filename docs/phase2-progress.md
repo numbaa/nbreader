@@ -9,8 +9,8 @@
 ## 2. 当前阶段概览
 
 - 当前里程碑：M5 已完成
-- 总体状态：doing
-- 最近更新：2026-04-18
+- 总体状态：done
+- 最近更新：2026-04-20
 
 ## 3. 里程碑清单
 
@@ -47,12 +47,12 @@
 
 ## 4. 测试清单（复杂/高变动功能必测）
 
-- [ ] 系列聚合查询与排序规则：单元测试（2026-04-18）
-- [ ] 统一页源一致性：单元测试（2026-04-18）
+- [x] 系列聚合查询与排序规则：单元测试（2026-04-20）
+- [x] 统一页源一致性：单元测试（2026-04-20）
 - [x] 双页配对与阅读方向：单元测试（2026-04-18）
-- [ ] ReaderState 状态迁移与切卷：集成测试（2026-04-18）
+- [x] ReaderState 状态迁移与切卷：集成测试（2026-04-20）
 - [x] ReadingProgress 写回节流与恢复：集成测试（2026-04-18）
-- [ ] 5.4 验收场景：场景测试（2026-04-18）
+- [x] 5.4 验收场景：场景测试（2026-04-20）
 
 ## 5. 验证记录
 
@@ -113,11 +113,24 @@
 - 验证结果：`dotnet build NbReader.sln -c Debug` 通过（0 warning）；`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（35/35）。
 - 发现问题：暂无阻塞；M5 已完成，后续进入测试清单收口与 5.4 验收场景。
 
+### 2026-04-20
+
+- 完成项：新增 `SeriesQueryServiceTests`，覆盖系列聚合数量统计、最近更新时间排序与 limit 生效规则。
+- 完成项：新增 `UnifiedVolumePageSourceTests`，覆盖绝对路径、目录相对路径、zip 条目（含大小写回退）与缺失页返回空流场景。
+- 验证结果：`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（41/41）。
+- 发现问题：暂无阻塞；测试清单剩余 ReaderState 切卷集成测试与 5.4 验收场景。
+
+### 2026-04-20（第 2 次）
+
+- 完成项：新增 `ReaderStateIntegrationTests`，覆盖打开卷后的状态迁移（VolumeReady -> PageLoading -> PageReady）与卷尾切到下一卷链路。
+- 完成项：新增 `Phase2AcceptanceScenarioTests`，覆盖 5.4 的 5 条验收场景（进入卷并翻页、关闭恢复页码、双页方向切换、卷尾进入下一卷、最近阅读与继续阅读可用）。
+- 验证结果：`dotnet test tests/NbReader.Import.Tests/NbReader.Import.Tests.csproj` 通过（48/48）。
+- 发现问题：暂无阻塞；Phase 2 测试清单已全部完成。
+
 ## 6. 下一步
 
-1. 补齐测试清单中未完成项（系列聚合、统一页源、切卷场景）。
-2. 执行 5.4 验收场景并记录结果。
-3. 根据真实数据样本复核双页配对与进度恢复边界行为。
+1. 根据真实数据样本复核双页配对与进度恢复边界行为。
+2. 准备进入下一阶段里程碑规划与任务拆分。
 
 ## 7. 风险与阻塞
 
