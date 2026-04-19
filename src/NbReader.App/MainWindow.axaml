@@ -299,6 +299,118 @@
                 </StackPanel>
             </Border>
 
+            <Border IsVisible="{Binding IsSearchSection}"
+                    Background="#F8FAFC"
+                    BorderBrush="#CBD5E1"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="20">
+                <Grid RowDefinitions="Auto,Auto,Auto,*"
+                      RowSpacing="10">
+                    <TextBlock Text="搜索整理工作台（M3）"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding SearchWorkspaceSummary}"
+                               Foreground="#475569"
+                               TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                        <Button Content="刷新视图"
+                                Click="OnSearchRefreshClick" />
+                        <Button Content="重新处理所选失败任务"
+                                IsEnabled="{Binding CanRetrySelectedFailedImportTask}"
+                                Click="OnSearchRetryFailedTaskClick" />
+                        <TextBlock Text="{Binding IsLoadingSearchWorkspace, StringFormat='加载中：{0}'}"
+                                   VerticalAlignment="Center"
+                                   Foreground="#64748B" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="3"
+                          ColumnDefinitions="*,*"
+                          ColumnSpacing="12">
+                        <Border Grid.Column="0"
+                                Background="#FFFFFF"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="12">
+                            <Grid RowDefinitions="Auto,*"
+                                  RowSpacing="8">
+                                <TextBlock Text="未整理卷"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding UnorganizedVolumes}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="viewModels:UnorganizedVolumeItemViewModel">
+                                            <Border BorderBrush="#E2E8F0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="10"
+                                                    Margin="0,0,0,8">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding VolumeTitle}"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SourcePath}"
+                                                               Foreground="#64748B"
+                                                               TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding CreatedAtText, StringFormat='导入时间：{0}'}"
+                                                               FontSize="12"
+                                                               Foreground="#94A3B8" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1"
+                                Background="#FFFFFF"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="12">
+                            <Grid RowDefinitions="Auto,*"
+                                  RowSpacing="8">
+                                <TextBlock Text="导入失败任务"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding FailedImportTasks}"
+                                         SelectedItem="{Binding SelectedFailedImportTask, Mode=TwoWay}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="viewModels:FailedImportTaskItemViewModel">
+                                            <Border BorderBrush="#E2E8F0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="10"
+                                                    Margin="0,0,0,8">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding RawInput}"
+                                                               FontWeight="SemiBold"
+                                                               TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding ErrorText, StringFormat='错误：{0}'}"
+                                                               Foreground="#B91C1C"
+                                                               TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Status, StringFormat='状态：{0}'}"
+                                                               Foreground="#64748B" />
+                                                    <TextBlock Text="{Binding UpdatedAtText, StringFormat='更新时间：{0}'}"
+                                                               FontSize="12"
+                                                               Foreground="#94A3B8" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+
             <Border IsVisible="{Binding IsPlaceholderSection}"
                     Background="#FFF7ED"
                     BorderBrush="#FDBA74"

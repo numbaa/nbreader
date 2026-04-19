@@ -115,6 +115,42 @@ public partial class MainWindow : Window
         _viewModel?.ToggleReadingDirection();
     }
 
+    private async void OnSearchRefreshClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.RefreshSearchWorkspaceAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"刷新搜索整理视图失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to refresh search workspace.", ex);
+        }
+    }
+
+    private async void OnSearchRetryFailedTaskClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.RetrySelectedFailedImportTaskAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"重新处理失败任务时出错：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to retry failed import task.", ex);
+        }
+    }
+
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         _viewModel?.FlushReadingProgress();

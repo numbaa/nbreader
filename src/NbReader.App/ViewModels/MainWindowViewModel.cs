@@ -22,6 +22,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _seriesDetailTitle = "请选择一个系列查看卷列表。";
     private string _readerLaunchSummary = "尚未打开卷。";
     private bool _isLoadingVolumes;
+    private bool _isLoadingSearchWorkspace;
+    private string _searchWorkspaceSummary = "未加载整理视图。";
     private long _selectedSeriesIdForDetail;
     private Bitmap? _readerPreviewImage;
     private Bitmap? _readerLeftPageImage;
@@ -37,6 +39,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private DateTimeOffset _lastProgressWriteAt = DateTimeOffset.MinValue;
     private bool _isProgressWriteInFlight;
     private bool _pendingForcedProgressWrite;
+    private FailedImportTaskItemViewModel? _selectedFailedImportTask;
     private readonly Dictionary<int, Bitmap> _pageBitmapCache = [];
     private readonly NearbyPageWindowPolicy _preloadPolicy = new(radius: 1);
     private readonly UnifiedVolumePageSource _pageSource = new();
@@ -52,7 +55,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "搜索与整理闭环 - M2（FTS 与拼音索引）";
+    public string Subtitle => "搜索与整理闭环 - M3（未整理与导入失败视图）";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [
@@ -69,6 +72,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<VolumeCardViewModel> VolumeCards { get; } = [];
 
     public ObservableCollection<RecentReadingItemViewModel> RecentReadings { get; } = [];
+
+    public ObservableCollection<UnorganizedVolumeItemViewModel> UnorganizedVolumes { get; } = [];
+
+    public ObservableCollection<FailedImportTaskItemViewModel> FailedImportTasks { get; } = [];
 
     public string SelectedNavigation
     {
@@ -99,6 +106,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _currentSection = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsCatalogSection));
+            OnPropertyChanged(nameof(IsSearchSection));
             OnPropertyChanged(nameof(IsPlaceholderSection));
             OnPropertyChanged(nameof(IsReaderSection));
         }
@@ -108,7 +116,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsReaderSection => string.Equals(CurrentSection, "Reader", StringComparison.OrdinalIgnoreCase);
 
-    public bool IsPlaceholderSection => !IsCatalogSection && !IsReaderSection;
+    public bool IsSearchSection => string.Equals(CurrentSection, SearchModule.Name, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsPlaceholderSection => !IsCatalogSection && !IsReaderSection && !IsSearchSection;
 
     public SeriesCardViewModel? SelectedSeries
     {
@@ -234,6 +244,54 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    public bool IsLoadingSearchWorkspace
+    {
+        get => _isLoadingSearchWorkspace;
+        private set
+        {
+            if (_isLoadingSearchWorkspace == value)
+            {
+                return;
+            }
+
+            _isLoadingSearchWorkspace = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string SearchWorkspaceSummary
+    {
+        get => _searchWorkspaceSummary;
+        private set
+        {
+            if (_searchWorkspaceSummary == value)
+            {
+                return;
+            }
+
+            _searchWorkspaceSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public FailedImportTaskItemViewModel? SelectedFailedImportTask
+    {
+        get => _selectedFailedImportTask;
+        set
+        {
+            if (_selectedFailedImportTask == value)
+            {
+                return;
+            }
+
+            _selectedFailedImportTask = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanRetrySelectedFailedImportTask));
+        }
+    }
+
+    public bool CanRetrySelectedFailedImportTask => SelectedFailedImportTask is not null;
 
     public Bitmap? ReaderPreviewImage
     {
@@ -362,6 +420,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         CurrentSection = sectionName;
+        if (IsSearchSection)
+        {
+            _ = LoadSearchWorkspaceAsync();
+            return;
+        }
+
         if (IsPlaceholderSection)
         {
             StatusMessage = $"{CurrentSection} 页面将在后续里程碑实现。";
@@ -439,6 +503,31 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         await OpenVolumeByIdAsync(SelectedRecentReading.VolumeId, cancellationToken);
+    }
+
+    public async Task RefreshSearchWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        await LoadSearchWorkspaceAsync(cancellationToken);
+    }
+
+    public async Task RetrySelectedFailedImportTaskAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedFailedImportTask is null)
+        {
+            StatusMessage = "请先选择一条失败记录。";
+            return;
+        }
+
+        var succeeded = await Runtime.LibraryMaintenanceService.RetryFailedTaskAsync(SelectedFailedImportTask.TaskId, cancellationToken);
+        if (!succeeded)
+        {
+            StatusMessage = "重新处理失败：记录不存在或状态已变化。";
+            await LoadSearchWorkspaceAsync(cancellationToken);
+            return;
+        }
+
+        StatusMessage = $"已提交重新处理：{SelectedFailedImportTask.RawInput}";
+        await LoadSearchWorkspaceAsync(cancellationToken);
     }
 
     public void FlushReadingProgress()
@@ -590,6 +679,36 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         ContinueReadingSummary = _continueReadingItem is null
             ? "暂无继续阅读记录。"
             : $"继续阅读：{_continueReadingItem.SeriesTitle} / {_continueReadingItem.VolumeTitle}（{_continueReadingItem.CurrentPageText}）";
+    }
+
+    private async Task LoadSearchWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        IsLoadingSearchWorkspace = true;
+        try
+        {
+            var unorganizedRows = await Runtime.LibraryMaintenanceService.GetUnorganizedVolumesAsync(cancellationToken: cancellationToken);
+            var failedRows = await Runtime.LibraryMaintenanceService.GetFailedImportTasksAsync(cancellationToken: cancellationToken);
+
+            UnorganizedVolumes.Clear();
+            foreach (var row in unorganizedRows)
+            {
+                UnorganizedVolumes.Add(new UnorganizedVolumeItemViewModel(row));
+            }
+
+            FailedImportTasks.Clear();
+            foreach (var row in failedRows)
+            {
+                FailedImportTasks.Add(new FailedImportTaskItemViewModel(row));
+            }
+
+            SelectedFailedImportTask = FailedImportTasks.Count > 0 ? FailedImportTasks[0] : null;
+            SearchWorkspaceSummary = $"未整理 {UnorganizedVolumes.Count} 条，导入失败 {FailedImportTasks.Count} 条。";
+            StatusMessage = "搜索整理视图已更新。";
+        }
+        finally
+        {
+            IsLoadingSearchWorkspace = false;
+        }
     }
 
     private async Task TryOpenNextVolumeAsync(CancellationToken cancellationToken = default)
@@ -1058,4 +1177,59 @@ public sealed class RecentReadingItemViewModel
         : $"{Math.Clamp(CurrentPageIndex + 1, 1, PageCount)} / {PageCount}";
 
     public string LastReadAtText => LastReadAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}
+
+public sealed class UnorganizedVolumeItemViewModel
+{
+    public UnorganizedVolumeItemViewModel(UnorganizedVolumeEntry entry)
+    {
+        VolumeId = entry.VolumeId;
+        VolumeTitle = entry.VolumeTitle;
+        SourcePath = entry.SourcePath;
+        CreatedAt = entry.CreatedAt;
+    }
+
+    public long VolumeId { get; }
+
+    public string VolumeTitle { get; }
+
+    public string SourcePath { get; }
+
+    public DateTimeOffset CreatedAt { get; }
+
+    public string CreatedAtText => CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}
+
+public sealed class FailedImportTaskItemViewModel
+{
+    public FailedImportTaskItemViewModel(FailedImportTaskEntry entry)
+    {
+        TaskId = entry.TaskId;
+        RawInput = entry.RawInput;
+        NormalizedLocator = entry.NormalizedLocator;
+        InputKind = entry.InputKind;
+        Status = entry.Status;
+        UpdatedAt = entry.UpdatedAt;
+        LastErrorMessage = entry.LastErrorMessage;
+    }
+
+    public Guid TaskId { get; }
+
+    public string RawInput { get; }
+
+    public string NormalizedLocator { get; }
+
+    public string InputKind { get; }
+
+    public string Status { get; }
+
+    public DateTimeOffset UpdatedAt { get; }
+
+    public string? LastErrorMessage { get; }
+
+    public string UpdatedAtText => UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    public string ErrorText => string.IsNullOrWhiteSpace(LastErrorMessage)
+        ? "(无错误详情)"
+        : LastErrorMessage;
 }
