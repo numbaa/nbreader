@@ -144,7 +144,7 @@
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="14">
-                                                <Grid RowDefinitions="Auto,Auto,*,Auto,*"
+                                                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,*"
                               RowSpacing="10">
                             <TextBlock Text="系列详情"
                                        FontSize="18"
@@ -194,21 +194,19 @@
                                            Foreground="#64748B" />
                             </StackPanel>
 
-                                <TextBlock Grid.Row="3"
-                                       Margin="0,34,0,0"
-                                       Text="{Binding CatalogPrimaryActionHint}"
-                                       Foreground="#92400E"
+                            <StackPanel Grid.Row="4"
+                                        Spacing="4">
+                                <TextBlock Text="{Binding CatalogPrimaryActionHint}"
+                                           Foreground="#92400E"
                                            IsVisible="{Binding ShouldShowCatalogPrimaryActionHint}"
-                                       TextWrapping="Wrap" />
-
-                                <TextBlock Grid.Row="3"
-                                       Margin="240,34,0,0"
-                                       Text="{Binding ContinueReadingActionHint}"
-                                       Foreground="#92400E"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ContinueReadingActionHint}"
+                                           Foreground="#92400E"
                                            IsVisible="{Binding ShouldShowContinueReadingActionHint}"
-                                       TextWrapping="Wrap" />
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
 
-                            <Border Grid.Row="4"
+                            <Border Grid.Row="5"
                                     BorderBrush="#E2E8F0"
                                     BorderThickness="1"
                                     CornerRadius="8"
@@ -262,7 +260,7 @@
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="20">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*"
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*"
                       RowSpacing="10">
                     <TextBlock Text="导入"
                            FontSize="20"
@@ -272,7 +270,11 @@
                            Foreground="#475569"
                            TextWrapping="Wrap" />
 
-                                        <Grid Grid.Row="2"
+                    <ComboBox Grid.Row="2"
+                              ItemsSource="{Binding RecentImportPaths}"
+                              SelectedItem="{Binding SelectedRecentImportPath, Mode=TwoWay}" />
+
+                                        <Grid Grid.Row="3"
                                             ColumnDefinitions="*,Auto,Auto,Auto,Auto"
                                             ColumnSpacing="8">
                     <TextBox Grid.Column="0"
@@ -294,7 +296,7 @@
                         Click="OnImportExecuteClick" />
                     </Grid>
 
-                    <Border Grid.Row="3"
+                    <Border Grid.Row="4"
                         Background="#FFFFFF"
                         BorderBrush="#E2E8F0"
                         BorderThickness="1"
@@ -327,7 +329,7 @@
                     </Grid>
                     </Border>
 
-                    <Border Grid.Row="4"
+                    <Border Grid.Row="5"
                         IsVisible="{Binding ImportRequiresConfirmation}"
                         Background="#FFF7ED"
                         BorderBrush="#FDBA74"
@@ -354,12 +356,12 @@
                     </Grid>
                     </Border>
 
-                    <TextBlock Grid.Row="5"
+                          <TextBlock Grid.Row="6"
                            Text="{Binding StatusMessage}"
                            Foreground="#334155"
                            TextWrapping="Wrap" />
 
-                    <TextBlock Grid.Row="6"
+                          <TextBlock Grid.Row="7"
                            Text="导入完成后会自动刷新 Catalog，并同步搜索整理工作台。"
                            Foreground="#64748B"
                            TextWrapping="Wrap" />

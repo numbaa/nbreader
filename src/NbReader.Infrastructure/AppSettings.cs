@@ -14,5 +14,7 @@ public sealed class AppSettings
 
     public List<string> LibraryRoots { get; set; } = [];
 
+    public List<string> RecentImportPaths { get; set; } = [];
+
     public bool EnableDiagnosticsOverlay { get; set; }
 }

@@ -53,6 +53,27 @@ public sealed class MainWindowViewModelWorkflowTests
         Assert.Contains("导入成功", viewModel.ImportExecutionSummary, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task AnalyzeImport_ShouldRecordRecentImportPathAsync()
+    {
+        using var fixture = TestRuntimeFixture.Create();
+        var first = fixture.CreateSampleImageFolder("SeriesRecent", "Vol01", imageCount: 3);
+        var second = fixture.CreateSampleImageFolder("SeriesRecent", "Vol02", imageCount: 3);
+        var viewModel = new MainWindowViewModel(fixture.Runtime)
+        {
+            ImportPathInput = first,
+        };
+
+        await viewModel.AnalyzeImportInputAsync();
+        viewModel.ImportPathInput = second;
+        await viewModel.AnalyzeImportInputAsync();
+
+        Assert.Equal(second, viewModel.RecentImportPaths[0]);
+        Assert.Equal(first, viewModel.RecentImportPaths[1]);
+        Assert.Equal(second, viewModel.SelectedRecentImportPath);
+        Assert.Contains(second, fixture.Runtime.Settings.RecentImportPaths, StringComparer.OrdinalIgnoreCase);
+    }
+
     private sealed class TestRuntimeFixture : IDisposable
     {
         private readonly string _root;

@@ -188,7 +188,7 @@ public partial class MainWindow : Window
             var localPath = selected.TryGetLocalPath();
             if (!string.IsNullOrWhiteSpace(localPath))
             {
-                _viewModel.ImportPathInput = localPath;
+                _viewModel.SetImportPathFromPicker(localPath);
             }
         }
         catch (Exception ex)
@@ -236,7 +236,7 @@ public partial class MainWindow : Window
             var localPath = selected.TryGetLocalPath();
             if (!string.IsNullOrWhiteSpace(localPath))
             {
-                _viewModel.ImportPathInput = localPath;
+                _viewModel.SetImportPathFromPicker(localPath);
             }
         }
         catch (Exception ex)
