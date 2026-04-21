@@ -26,6 +26,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _importInputKindSummary = "尚未分析输入。";
     private string _importPlanSummary = "请输入路径并点击“分析输入”。";
     private string _importExecutionSummary = "尚未执行导入。";
+    private string? _selectedRecentImportPath;
     private string _importSeriesNameOverride = string.Empty;
     private bool _importSkipDuplicateVolumes = true;
     private bool _importIgnoreWarnings;
@@ -68,6 +69,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         Runtime = runtime;
         SeriesCards.CollectionChanged += OnSeriesCardsChanged;
+
+        Runtime.Settings.RecentImportPaths ??= [];
+        foreach (var path in Runtime.Settings.RecentImportPaths.Where(static path => !string.IsNullOrWhiteSpace(path)))
+        {
+            RecentImportPaths.Add(path);
+        }
+
+        _selectedRecentImportPath = RecentImportPaths.FirstOrDefault();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -97,6 +106,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<FailedImportTaskItemViewModel> FailedImportTasks { get; } = [];
 
     public ObservableCollection<SeriesMergeTargetItemViewModel> MergeTargetSeriesOptions { get; } = [];
+
+    public ObservableCollection<string> RecentImportPaths { get; } = [];
 
     public string SelectedNavigation
     {
@@ -314,6 +325,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
+    public string? SelectedRecentImportPath
+    {
+        get => _selectedRecentImportPath;
+        set
+        {
+            if (string.Equals(_selectedRecentImportPath, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _selectedRecentImportPath = value;
+            OnPropertyChanged();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                ImportPathInput = value;
+            }
+        }
+    }
+
     public string ImportInputKindSummary
     {
         get => _importInputKindSummary;
@@ -473,6 +503,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void GoToImportSection()
     {
         SelectedNavigation = ImportModule.Name;
+    }
+
+    public void SetImportPathFromPicker(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        ImportPathInput = path.Trim();
+        RegisterRecentImportPath(ImportPathInput);
     }
 
     public bool IsLoadingSearchWorkspace
@@ -870,6 +911,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             var rawInput = ImportPathInput.Trim();
+            RegisterRecentImportPath(rawInput);
             var task = await Task.Run(() => Runtime.ImportOrchestrator.CreateOrReuseTask(rawInput), cancellationToken);
             var plan = await Task.Run(() => Runtime.ImportOrchestrator.AnalyzeTask(task), cancellationToken);
 
@@ -1740,6 +1782,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             message,
             now));
         return updated;
+    }
+
+    private void RegisterRecentImportPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var normalized = path.Trim();
+        var existing = RecentImportPaths.FirstOrDefault(item => string.Equals(item, normalized, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            RecentImportPaths.Remove(existing);
+        }
+
+        RecentImportPaths.Insert(0, normalized);
+        while (RecentImportPaths.Count > 8)
+        {
+            RecentImportPaths.RemoveAt(RecentImportPaths.Count - 1);
+        }
+
+        _selectedRecentImportPath = normalized;
+        OnPropertyChanged(nameof(SelectedRecentImportPath));
+        Runtime.Settings.RecentImportPaths = RecentImportPaths.ToList();
+        Runtime.SettingsStore.Save(Runtime.Settings);
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
