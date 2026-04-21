@@ -67,6 +67,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel(AppRuntime runtime)
     {
         Runtime = runtime;
+        SeriesCards.CollectionChanged += OnSeriesCardsChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -193,11 +194,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             VolumeNumberInput = _selectedVolume?.VolumeNumber?.ToString() ?? string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanOpenSelectedVolume));
+            OnPropertyChanged(nameof(CatalogPrimaryActionHint));
+            OnPropertyChanged(nameof(ShouldShowCatalogPrimaryActionHint));
             OnPropertyChanged(nameof(CanApplyVolumeNumberCorrection));
         }
     }
 
     public bool CanOpenSelectedVolume => SelectedVolume is not null;
+
+    public bool IsCatalogEmpty => SeriesCards.Count == 0;
+
+    public string CatalogPrimaryActionHint => CanOpenSelectedVolume
+        ? ""
+        : IsCatalogEmpty
+            ? "书架为空：请先到 Import 导入目录或 zip。"
+            : "请先在右侧卷列表中选择一个卷。";
+
+    public bool ShouldShowCatalogPrimaryActionHint => !CanOpenSelectedVolume;
 
     public RecentReadingItemViewModel? SelectedRecentReading
     {
@@ -218,6 +231,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool CanOpenSelectedRecentReading => SelectedRecentReading is not null;
 
     public bool CanContinueReading => _continueReadingItem is not null;
+
+    public string ContinueReadingActionHint => CanContinueReading
+        ? ""
+        : "暂无可继续阅读的记录。";
+
+    public bool ShouldShowContinueReadingActionHint => !CanContinueReading;
 
     public string ContinueReadingSummary
     {
@@ -450,6 +469,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool CanAnalyzeImportInput => !IsImportBusy && !string.IsNullOrWhiteSpace(ImportPathInput);
 
     public bool CanExecuteImport => !IsImportBusy && _activeImportTask is not null && _activeImportPlan is not null;
+
+    public void GoToImportSection()
+    {
+        SelectedNavigation = ImportModule.Name;
+    }
 
     public bool IsLoadingSearchWorkspace
     {
@@ -792,6 +816,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (items.Count > 0)
         {
             SelectedSeries = SeriesCards[0];
+        }
+        else
+        {
+            SelectedSeries = null;
         }
 
         await LoadReadingEntrypointsAsync(cancellationToken);
@@ -1221,6 +1249,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _continueReadingItem = RecentReadings.FirstOrDefault(item => !item.Completed)
             ?? RecentReadings.FirstOrDefault();
         OnPropertyChanged(nameof(CanContinueReading));
+        OnPropertyChanged(nameof(ContinueReadingActionHint));
+        OnPropertyChanged(nameof(ShouldShowContinueReadingActionHint));
 
         ContinueReadingSummary = _continueReadingItem is null
             ? "暂无继续阅读记录。"
@@ -1715,6 +1745,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private void OnSeriesCardsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(IsCatalogEmpty));
+        OnPropertyChanged(nameof(CatalogPrimaryActionHint));
+        OnPropertyChanged(nameof(ShouldShowCatalogPrimaryActionHint));
     }
 }
 

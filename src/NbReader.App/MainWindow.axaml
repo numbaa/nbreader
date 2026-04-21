@@ -87,8 +87,30 @@
                                Foreground="#334155"
                                TextWrapping="Wrap" />
 
+                    <Border Grid.Row="2"
+                            Grid.Column="0"
+                            IsVisible="{Binding IsCatalogEmpty}"
+                            Background="#FFF7ED"
+                            BorderBrush="#FDBA74"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="12"
+                            Margin="0,0,0,10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="书架暂无数据"
+                                       FontWeight="SemiBold"
+                                       Foreground="#9A3412" />
+                            <TextBlock Text="请先导入一个目录或 zip，然后返回 Catalog 查看系列。"
+                                       Foreground="#9A3412"
+                                       TextWrapping="Wrap" />
+                            <Button Content="去 Import"
+                                    HorizontalAlignment="Left"
+                                    Click="OnCatalogGoToImportClick" />
+                        </StackPanel>
+                    </Border>
+
                                         <ListBox Grid.Row="2"
-                                                         Grid.Column="0"
+                             Grid.Column="0"
                              ItemsSource="{Binding SeriesCards}"
                              SelectedItem="{Binding SelectedSeries, Mode=TwoWay}">
                         <ListBox.ItemTemplate>
@@ -172,6 +194,20 @@
                                            Foreground="#64748B" />
                             </StackPanel>
 
+                                <TextBlock Grid.Row="3"
+                                       Margin="0,34,0,0"
+                                       Text="{Binding CatalogPrimaryActionHint}"
+                                       Foreground="#92400E"
+                                           IsVisible="{Binding ShouldShowCatalogPrimaryActionHint}"
+                                       TextWrapping="Wrap" />
+
+                                <TextBlock Grid.Row="3"
+                                       Margin="240,34,0,0"
+                                       Text="{Binding ContinueReadingActionHint}"
+                                       Foreground="#92400E"
+                                           IsVisible="{Binding ShouldShowContinueReadingActionHint}"
+                                       TextWrapping="Wrap" />
+
                             <Border Grid.Row="4"
                                     BorderBrush="#E2E8F0"
                                     BorderThickness="1"
@@ -236,17 +272,23 @@
                            Foreground="#475569"
                            TextWrapping="Wrap" />
 
-                    <Grid Grid.Row="2"
-                      ColumnDefinitions="*,Auto,Auto"
-                      ColumnSpacing="8">
+                                        <Grid Grid.Row="2"
+                                            ColumnDefinitions="*,Auto,Auto,Auto,Auto"
+                                            ColumnSpacing="8">
                     <TextBox Grid.Column="0"
                          Text="{Binding ImportPathInput, Mode=TwoWay}"
                                  PlaceholderText="例如：D:\\Comics\\OnePiece 或 D:\\Comics\\Vol01.zip" />
                     <Button Grid.Column="1"
+                                                Content="选目录"
+                                                Click="OnImportPickFolderClick" />
+                                        <Button Grid.Column="2"
+                                                Content="选 zip"
+                                                Click="OnImportPickZipClick" />
+                                        <Button Grid.Column="3"
                         Content="分析输入"
                         IsEnabled="{Binding CanAnalyzeImportInput}"
                         Click="OnImportAnalyzeClick" />
-                    <Button Grid.Column="2"
+                                        <Button Grid.Column="4"
                         Content="执行导入"
                         IsEnabled="{Binding CanExecuteImport}"
                         Click="OnImportExecuteClick" />

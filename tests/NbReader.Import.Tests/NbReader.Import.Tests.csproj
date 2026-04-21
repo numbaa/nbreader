@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\NbReader.App\NbReader.App.csproj" />
     <ProjectReference Include="..\..\src\NbReader.Import\NbReader.Import.csproj" />
     <ProjectReference Include="..\..\src\NbReader.Infrastructure\NbReader.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\NbReader.Reader\NbReader.Reader.csproj" />
