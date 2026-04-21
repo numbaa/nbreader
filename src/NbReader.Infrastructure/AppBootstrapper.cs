@@ -1,4 +1,5 @@
 using NbReader.Catalog;
+using NbReader.Import;
 using NbReader.Search;
 
 namespace NbReader.Infrastructure;
@@ -22,12 +23,15 @@ public static class AppBootstrapper
 
         var seriesQueryService = new SeriesQueryService(database.ConnectionString);
         var seriesSearchService = new SeriesSearchService(database.ConnectionString);
+        var importTaskStore = new SqliteImportTaskStore(database);
+        var importOrchestrator = new ImportOrchestrator(importTaskStore);
+        var importWriteService = new ImportWriteService(database, logger);
         var libraryMaintenanceService = new LibraryMaintenanceService(database.ConnectionString);
         var seriesCorrectionService = new SeriesCorrectionService(database.ConnectionString);
         var seriesMetadataEditService = new SeriesMetadataEditService(database.ConnectionString);
         var volumeQueryService = new VolumeQueryService(database.ConnectionString);
         var readingProgressService = new ReadingProgressService(database.ConnectionString);
 
-        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService, seriesSearchService, libraryMaintenanceService, seriesCorrectionService, seriesMetadataEditService, volumeQueryService, readingProgressService);
+        return new AppRuntime(settings, settingsStore, database, logger, seriesQueryService, seriesSearchService, importTaskStore, importOrchestrator, importWriteService, libraryMaintenanceService, seriesCorrectionService, seriesMetadataEditService, volumeQueryService, readingProgressService);
     }
 }
