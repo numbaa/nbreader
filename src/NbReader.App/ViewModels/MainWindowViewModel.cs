@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media.Imaging;
 using NbReader.Catalog;
+using NbReader.Import;
 using NbReader.Infrastructure;
 using NbReader.Reader;
 using NbReader.Search;
@@ -21,8 +22,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private VolumeCardViewModel? _selectedVolume;
     private string _seriesDetailTitle = "请选择一个系列查看卷列表。";
     private string _readerLaunchSummary = "尚未打开卷。";
+    private string _importPathInput = string.Empty;
+    private string _importInputKindSummary = "尚未分析输入。";
+    private string _importPlanSummary = "请输入路径并点击“分析输入”。";
+    private string _importExecutionSummary = "尚未执行导入。";
+    private string _importSeriesNameOverride = string.Empty;
+    private bool _importSkipDuplicateVolumes = true;
+    private bool _importIgnoreWarnings;
+    private bool _isImportBusy;
+    private bool _importRequiresConfirmation;
+    private string _importWarningsSummary = "无";
+    private string _importConflictsSummary = "无";
+    private ImportTask? _activeImportTask;
+    private ImportPlan? _activeImportPlan;
     private bool _isLoadingVolumes;
     private bool _isLoadingSearchWorkspace;
+    private bool _isDiagnosticsExpanded;
     private string _searchWorkspaceSummary = "未加载整理视图。";
     private string _seriesRenameInput = string.Empty;
     private string _volumeNumberInput = string.Empty;
@@ -60,7 +75,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string Title => "NbReader";
 
-    public string Subtitle => "搜索与整理闭环 - M4（基础系列修正能力）";
+    public string Subtitle => "本地漫画库";
 
     public IReadOnlyList<string> NavigationItems { get; } =
     [
@@ -68,8 +83,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         "Import",
         "Reader",
         "Search",
-        "Metadata",
-        "Infrastructure",
     ];
 
     public ObservableCollection<SeriesCardViewModel> SeriesCards { get; } = [];
@@ -113,6 +126,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _currentSection = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsCatalogSection));
+            OnPropertyChanged(nameof(IsImportSection));
             OnPropertyChanged(nameof(IsSearchSection));
             OnPropertyChanged(nameof(IsPlaceholderSection));
             OnPropertyChanged(nameof(IsReaderSection));
@@ -121,11 +135,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsCatalogSection => string.Equals(CurrentSection, CatalogModule.Name, StringComparison.OrdinalIgnoreCase);
 
+    public bool IsImportSection => string.Equals(CurrentSection, ImportModule.Name, StringComparison.OrdinalIgnoreCase);
+
     public bool IsReaderSection => string.Equals(CurrentSection, "Reader", StringComparison.OrdinalIgnoreCase);
 
     public bool IsSearchSection => string.Equals(CurrentSection, SearchModule.Name, StringComparison.OrdinalIgnoreCase);
 
-    public bool IsPlaceholderSection => !IsCatalogSection && !IsReaderSection && !IsSearchSection;
+    public bool IsPlaceholderSection => !IsCatalogSection && !IsImportSection && !IsReaderSection && !IsSearchSection;
 
     public SeriesCardViewModel? SelectedSeries
     {
@@ -262,6 +278,178 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    public string ImportPathInput
+    {
+        get => _importPathInput;
+        set
+        {
+            if (_importPathInput == value)
+            {
+                return;
+            }
+
+            _importPathInput = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanAnalyzeImportInput));
+        }
+    }
+
+    public string ImportInputKindSummary
+    {
+        get => _importInputKindSummary;
+        private set
+        {
+            if (_importInputKindSummary == value)
+            {
+                return;
+            }
+
+            _importInputKindSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ImportPlanSummary
+    {
+        get => _importPlanSummary;
+        private set
+        {
+            if (_importPlanSummary == value)
+            {
+                return;
+            }
+
+            _importPlanSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ImportExecutionSummary
+    {
+        get => _importExecutionSummary;
+        private set
+        {
+            if (_importExecutionSummary == value)
+            {
+                return;
+            }
+
+            _importExecutionSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ImportSeriesNameOverride
+    {
+        get => _importSeriesNameOverride;
+        set
+        {
+            if (_importSeriesNameOverride == value)
+            {
+                return;
+            }
+
+            _importSeriesNameOverride = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool ImportSkipDuplicateVolumes
+    {
+        get => _importSkipDuplicateVolumes;
+        set
+        {
+            if (_importSkipDuplicateVolumes == value)
+            {
+                return;
+            }
+
+            _importSkipDuplicateVolumes = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool ImportIgnoreWarnings
+    {
+        get => _importIgnoreWarnings;
+        set
+        {
+            if (_importIgnoreWarnings == value)
+            {
+                return;
+            }
+
+            _importIgnoreWarnings = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsImportBusy
+    {
+        get => _isImportBusy;
+        private set
+        {
+            if (_isImportBusy == value)
+            {
+                return;
+            }
+
+            _isImportBusy = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanAnalyzeImportInput));
+            OnPropertyChanged(nameof(CanExecuteImport));
+        }
+    }
+
+    public bool ImportRequiresConfirmation
+    {
+        get => _importRequiresConfirmation;
+        private set
+        {
+            if (_importRequiresConfirmation == value)
+            {
+                return;
+            }
+
+            _importRequiresConfirmation = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ImportWarningsSummary
+    {
+        get => _importWarningsSummary;
+        private set
+        {
+            if (_importWarningsSummary == value)
+            {
+                return;
+            }
+
+            _importWarningsSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ImportConflictsSummary
+    {
+        get => _importConflictsSummary;
+        private set
+        {
+            if (_importConflictsSummary == value)
+            {
+                return;
+            }
+
+            _importConflictsSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool CanAnalyzeImportInput => !IsImportBusy && !string.IsNullOrWhiteSpace(ImportPathInput);
+
+    public bool CanExecuteImport => !IsImportBusy && _activeImportTask is not null && _activeImportPlan is not null;
 
     public bool IsLoadingSearchWorkspace
     {
@@ -515,8 +703,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string Footer =>
+    public bool IsDiagnosticsExpanded
+    {
+        get => _isDiagnosticsExpanded;
+        set
+        {
+            if (_isDiagnosticsExpanded == value)
+            {
+                return;
+            }
+
+            _isDiagnosticsExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string RuntimeSummary => "系统就绪";
+
+    public string DiagnosticsText =>
         $"SQLite: {Runtime.Database.DatabaseFilePath} | Schema Version: {Runtime.Database.ReadMetaValue("schema_version") ?? "unknown"} | Log: {Runtime.Logger.LogFilePath}";
+
+    public string Footer => DiagnosticsText;
 
     public void NavigateTo(string sectionName)
     {
@@ -526,6 +733,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         CurrentSection = sectionName;
+        if (IsCatalogSection)
+        {
+            _ = LoadSeriesAsync();
+            return;
+        }
+
+        if (IsImportSection)
+        {
+            StatusMessage = "请输入本地 zip 或目录路径后执行导入。";
+            return;
+        }
+
         if (IsSearchSection)
         {
             _ = LoadSearchWorkspaceAsync();
@@ -609,6 +828,99 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         await OpenVolumeByIdAsync(SelectedRecentReading.VolumeId, cancellationToken);
+    }
+
+    public async Task AnalyzeImportInputAsync(CancellationToken cancellationToken = default)
+    {
+        if (!CanAnalyzeImportInput)
+        {
+            StatusMessage = "请先输入有效路径。";
+            return;
+        }
+
+        IsImportBusy = true;
+        try
+        {
+            var rawInput = ImportPathInput.Trim();
+            var task = await Task.Run(() => Runtime.ImportOrchestrator.CreateOrReuseTask(rawInput), cancellationToken);
+            var plan = await Task.Run(() => Runtime.ImportOrchestrator.AnalyzeTask(task), cancellationToken);
+
+            _activeImportTask = task;
+            _activeImportPlan = plan;
+
+            ImportInputKindSummary = $"输入类型：{task.InputKind}";
+            ImportPlanSummary = $"计划卷数：{plan.VolumePlans.Count}，系列候选：{plan.SeriesCandidate ?? "(未识别)"}";
+            ImportWarningsSummary = plan.WarningList.Count == 0
+                ? "无"
+                : string.Join("；", plan.WarningList);
+            ImportConflictsSummary = plan.ConflictReport.HasConflicts
+                ? string.Join("；", plan.ConflictReport.DetailMessages)
+                : "无";
+            ImportRequiresConfirmation = plan.RequiresConfirmation;
+            ImportSeriesNameOverride = plan.SeriesCandidate ?? string.Empty;
+            ImportExecutionSummary = "分析完成，等待执行导入。";
+            StatusMessage = plan.RequiresConfirmation
+                ? "检测到冲突或告警，执行导入前将应用确认策略。"
+                : "分析完成，可直接导入。";
+        }
+        finally
+        {
+            IsImportBusy = false;
+        }
+    }
+
+    public async Task ExecuteImportAsync(CancellationToken cancellationToken = default)
+    {
+        if (!CanExecuteImport || _activeImportTask is null || _activeImportPlan is null)
+        {
+            StatusMessage = "请先分析输入后再执行导入。";
+            return;
+        }
+
+        IsImportBusy = true;
+        try
+        {
+            var task = _activeImportTask;
+            var plan = _activeImportPlan;
+
+            var planForPersist = plan;
+            if (plan.RequiresConfirmation)
+            {
+                var request = new ImportConfirmationRequest(
+                    SeriesNameOverride: string.IsNullOrWhiteSpace(ImportSeriesNameOverride) ? null : ImportSeriesNameOverride.Trim(),
+                    VolumeOverrides: [],
+                    SkipDuplicateVolumes: ImportSkipDuplicateVolumes,
+                    IgnoreWarnings: ImportIgnoreWarnings);
+
+                planForPersist = Runtime.ImportOrchestrator.ConfirmPlan(task, plan, request);
+                _activeImportPlan = planForPersist;
+                task = UpdateImportTaskStatus(task, ImportTaskStatus.Importing, "confirmation_applied", "Confirmation applied.");
+            }
+
+            var persistResult = await Task.Run(() => Runtime.ImportWriteService.Persist(planForPersist), cancellationToken);
+            if (!persistResult.Succeeded || persistResult.Summary is null)
+            {
+                var error = persistResult.ErrorMessage ?? "未知错误";
+                ImportExecutionSummary = $"导入失败：{error}";
+                _activeImportTask = UpdateImportTaskStatus(task, ImportTaskStatus.Failed, "import_failed", error);
+                StatusMessage = ImportExecutionSummary;
+                await LoadSearchWorkspaceAsync(cancellationToken);
+                return;
+            }
+
+            var summary = persistResult.Summary;
+            ImportExecutionSummary = $"导入成功：卷 {summary.InsertedOrUpdatedVolumes}，页面 {summary.InsertedPages}。";
+            _activeImportTask = UpdateImportTaskStatus(task, ImportTaskStatus.Completed, "import_completed", ImportExecutionSummary);
+            StatusMessage = ImportExecutionSummary;
+
+            await LoadSeriesAsync(cancellationToken);
+            await LoadSearchWorkspaceAsync(cancellationToken);
+            SelectedNavigation = CatalogModule.Name;
+        }
+        finally
+        {
+            IsImportBusy = false;
+        }
     }
 
     public async Task RefreshSearchWorkspaceAsync(CancellationToken cancellationToken = default)
@@ -1379,6 +1691,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             .Where(static item => !string.IsNullOrWhiteSpace(item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private ImportTask UpdateImportTaskStatus(ImportTask task, ImportTaskStatus status, string eventType, string message)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var updated = task with
+        {
+            Status = status,
+            UpdatedAt = now,
+        };
+
+        Runtime.ImportTaskStore.UpsertTask(updated);
+        Runtime.ImportTaskStore.AppendEvent(new ImportTaskEvent(
+            updated.TaskId,
+            updated.Status,
+            eventType,
+            message,
+            now));
+        return updated;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

@@ -1,4 +1,5 @@
 using NbReader.Catalog;
+using NbReader.Import;
 using NbReader.Search;
 
 namespace NbReader.Infrastructure;
@@ -12,6 +13,9 @@ public sealed class AppRuntime
         AppLogger logger,
         SeriesQueryService seriesQueryService,
         SeriesSearchService seriesSearchService,
+        IImportTaskStore importTaskStore,
+        ImportOrchestrator importOrchestrator,
+        ImportWriteService importWriteService,
         LibraryMaintenanceService libraryMaintenanceService,
         SeriesCorrectionService seriesCorrectionService,
         SeriesMetadataEditService seriesMetadataEditService,
@@ -24,6 +28,9 @@ public sealed class AppRuntime
         Logger = logger;
         SeriesQueryService = seriesQueryService;
         SeriesSearchService = seriesSearchService;
+        ImportTaskStore = importTaskStore;
+        ImportOrchestrator = importOrchestrator;
+        ImportWriteService = importWriteService;
         LibraryMaintenanceService = libraryMaintenanceService;
         SeriesCorrectionService = seriesCorrectionService;
         SeriesMetadataEditService = seriesMetadataEditService;
@@ -42,6 +49,12 @@ public sealed class AppRuntime
     public SeriesQueryService SeriesQueryService { get; }
 
     public SeriesSearchService SeriesSearchService { get; }
+
+    public IImportTaskStore ImportTaskStore { get; }
+
+    public ImportOrchestrator ImportOrchestrator { get; }
+
+    public ImportWriteService ImportWriteService { get; }
 
     public LibraryMaintenanceService LibraryMaintenanceService { get; }
 

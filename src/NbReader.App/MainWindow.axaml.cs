@@ -133,6 +133,42 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnImportAnalyzeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.AnalyzeImportInputAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"分析导入输入失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to analyze import input.", ex);
+        }
+    }
+
+    private async void OnImportExecuteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _viewModel.ExecuteImportAsync();
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportStatus($"执行导入失败：{ex.Message}");
+            _viewModel.Runtime.Logger.Error("Failed to execute import.", ex);
+        }
+    }
+
     private async void OnSearchRetryFailedTaskClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_viewModel is null)
