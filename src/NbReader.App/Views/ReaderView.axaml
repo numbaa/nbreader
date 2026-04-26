@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="using:NbReader.App.ViewModels"
+             x:Class="NbReader.App.Views.ReaderView"
+             x:DataType="viewModels:MainWindowViewModel"
+             x:CompileBindings="False">
+    <Border Background="#F1F5F9"
+            BorderBrush="#CBD5E1"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="20">
+        <StackPanel Spacing="12">
+            <TextBlock Text="阅读器"
+                       FontSize="20"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="{Binding ReaderLaunchSummary}"
+                       TextWrapping="Wrap"
+                       Foreground="#334155" />
+            <StackPanel Orientation="Horizontal"
+                        Spacing="12">
+                <TextBlock Text="{Binding ReaderPageIndicator, StringFormat='页码：{0}'}"
+                           Foreground="#334155"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ReaderStateLabel, StringFormat='状态：{0}'}"
+                           Foreground="#475569"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ReaderDisplayModeLabel, StringFormat='模式：{0}'}"
+                           Foreground="#334155"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ReaderDirectionLabel, StringFormat='方向：{0}'}"
+                           Foreground="#334155"
+                           VerticalAlignment="Center" />
+                <Button Content="切换单双页"
+                        Command="{Binding ReaderToggleModeCommand}" />
+                <Button Content="切换方向"
+                        Command="{Binding ReaderToggleDirectionCommand}" />
+                <Button Content="上一页"
+                        IsEnabled="{Binding CanGoToPreviousPage}"
+                        Command="{Binding ReaderPreviousPageCommand}" />
+                <Button Content="下一页"
+                        IsEnabled="{Binding CanGoToNextPage}"
+                        Command="{Binding ReaderNextPageCommand}" />
+            </StackPanel>
+            <Border Height="520"
+                    Background="#0B1220"
+                    CornerRadius="8"
+                    Padding="8"
+                    IsVisible="{Binding IsSinglePageMode}">
+                <Image Source="{Binding ReaderPreviewImage}"
+                       Stretch="Uniform" />
+            </Border>
+            <Border Height="520"
+                    Background="#0B1220"
+                    CornerRadius="8"
+                    Padding="8"
+                    IsVisible="{Binding IsDualPageMode}">
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="8">
+                    <Border Grid.Column="0"
+                            BorderBrush="#1E293B"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="2"
+                            IsVisible="{Binding HasReaderLeftPageImage}">
+                        <Image Source="{Binding ReaderLeftPageImage}"
+                               Stretch="Uniform" />
+                    </Border>
+                    <Border Grid.Column="1"
+                            BorderBrush="#1E293B"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="2"
+                            IsVisible="{Binding HasReaderRightPageImage}">
+                        <Image Source="{Binding ReaderRightPageImage}"
+                               Stretch="Uniform" />
+                    </Border>
+                </Grid>
+            </Border>
+            <TextBlock Text="预加载策略：以当前显示页为中心，保留邻近 1 页；双页模式会同时覆盖左右页。"
+                       Foreground="#64748B" />
+        </StackPanel>
+    </Border>
+</UserControl>

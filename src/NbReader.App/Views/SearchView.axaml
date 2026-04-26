@@ -1,0 +1,191 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="using:NbReader.App.ViewModels"
+             x:Class="NbReader.App.Views.SearchView"
+             x:DataType="viewModels:MainWindowViewModel"
+             x:CompileBindings="False">
+    <Border Background="#F8FAFC"
+            BorderBrush="#CBD5E1"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="20">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,*"
+              RowSpacing="10">
+            <TextBlock Text="搜索与整理"
+                       FontSize="20"
+                       FontWeight="SemiBold" />
+            <TextBlock Grid.Row="1"
+                       Text="{Binding SearchWorkspaceSummary}"
+                       Foreground="#475569"
+                       TextWrapping="Wrap" />
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                <Button Content="刷新视图"
+                        Command="{Binding SearchRefreshCommand}" />
+                <Button Content="重新处理所选失败任务"
+                        IsEnabled="{Binding CanRetrySelectedFailedImportTask}"
+                        Command="{Binding RetrySelectedFailedImportTaskCommand}" />
+                <TextBlock Text="{Binding IsLoadingSearchWorkspace, StringFormat='加载中：{0}'}"
+                           VerticalAlignment="Center"
+                           Foreground="#64748B" />
+            </StackPanel>
+
+            <Border Grid.Row="3"
+                    Background="#FFFFFF"
+                    BorderBrush="#E2E8F0"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="12">
+                <Grid ColumnDefinitions="*,*,*,*"
+                      ColumnSpacing="10">
+                    <StackPanel Grid.Column="0"
+                                Spacing="6">
+                        <TextBlock Text="系列改名"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="当前选中 Catalog 中的系列。"
+                                   Foreground="#64748B"
+                                   FontSize="12" />
+                        <TextBox Text="{Binding SeriesRenameInput, Mode=TwoWay}" />
+                        <Button Content="应用改名"
+                                IsEnabled="{Binding CanApplySeriesRename}"
+                                Command="{Binding ApplySeriesRenameCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Spacing="6">
+                        <TextBlock Text="系列合并"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="将当前选中系列合并到目标系列。"
+                                   Foreground="#64748B"
+                                   FontSize="12" />
+                        <ComboBox ItemsSource="{Binding MergeTargetSeriesOptions}"
+                                  SelectedItem="{Binding SelectedMergeTargetSeries, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:SeriesMergeTargetItemViewModel">
+                                    <TextBlock Text="{Binding DisplayText}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="执行合并"
+                                IsEnabled="{Binding CanMergeSelectedSeries}"
+                                Command="{Binding MergeSelectedSeriesCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2"
+                                Spacing="6">
+                        <TextBlock Text="卷号修正"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="当前选中 Catalog 中的卷，留空可清除卷号。"
+                                   Foreground="#64748B"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                        <TextBox Text="{Binding VolumeNumberInput, Mode=TwoWay}"
+                                 PlaceholderText="例如 1" />
+                        <Button Content="应用卷号"
+                                IsEnabled="{Binding CanApplyVolumeNumberCorrection}"
+                                Command="{Binding ApplyVolumeNumberCorrectionCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3"
+                                Spacing="6">
+                        <TextBlock Text="作者与标签编辑"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="编辑当前选中系列，使用逗号分隔。"
+                                   Foreground="#64748B"
+                                   FontSize="12" />
+                        <TextBox Text="{Binding AuthorNamesInput, Mode=TwoWay}"
+                                 PlaceholderText="作者1, 作者2" />
+                        <TextBox Text="{Binding TagNamesInput, Mode=TwoWay}"
+                                 PlaceholderText="标签1, 标签2" />
+                        <Button Content="应用作者/标签"
+                                IsEnabled="{Binding CanApplySeriesMetadata}"
+                                Command="{Binding ApplySeriesMetadataCommand}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="4"
+                  ColumnDefinitions="*,*"
+                  ColumnSpacing="12">
+                <Border Grid.Column="0"
+                        Background="#FFFFFF"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12">
+                    <Grid RowDefinitions="Auto,*"
+                          RowSpacing="8">
+                        <TextBlock Text="未整理卷"
+                                   FontSize="16"
+                                   FontWeight="SemiBold" />
+                        <ListBox Grid.Row="1"
+                                 ItemsSource="{Binding UnorganizedVolumes}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:UnorganizedVolumeItemViewModel">
+                                    <Border BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="10"
+                                            Margin="0,0,0,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding VolumeTitle}"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding SourcePath}"
+                                                       Foreground="#64748B"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding CreatedAtText, StringFormat='导入时间：{0}'}"
+                                                       FontSize="12"
+                                                       Foreground="#94A3B8" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Background="#FFFFFF"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12">
+                    <Grid RowDefinitions="Auto,*"
+                          RowSpacing="8">
+                        <TextBlock Text="导入失败任务"
+                                   FontSize="16"
+                                   FontWeight="SemiBold" />
+                        <ListBox Grid.Row="1"
+                                 ItemsSource="{Binding FailedImportTasks}"
+                                 SelectedItem="{Binding SelectedFailedImportTask, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewModels:FailedImportTaskItemViewModel">
+                                    <Border BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="10"
+                                            Margin="0,0,0,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding RawInput}"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding ErrorText, StringFormat='错误：{0}'}"
+                                                       Foreground="#B91C1C"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Status, StringFormat='状态：{0}'}"
+                                                       Foreground="#64748B" />
+                                            <TextBlock Text="{Binding UpdatedAtText, StringFormat='更新时间：{0}'}"
+                                                       FontSize="12"
+                                                       Foreground="#94A3B8" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

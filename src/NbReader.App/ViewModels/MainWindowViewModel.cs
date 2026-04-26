@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using Avalonia.Media.Imaging;
 using NbReader.Catalog;
 using NbReader.Import;
@@ -77,6 +78,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         _selectedRecentImportPath = RecentImportPaths.FirstOrDefault();
+
+        GoToImportCommand = new DelegateCommand(GoToImportSection);
+        OpenSelectedVolumeCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(OpenSelectedVolumeAsync, "打开卷失败", "Failed to open selected volume."));
+        OpenContinueReadingCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(OpenContinueReadingAsync, "继续阅读失败", "Failed to open continue reading entry."));
+        OpenSelectedRecentReadingCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(OpenSelectedRecentReadingAsync, "打开最近阅读失败", "Failed to open selected recent reading entry."));
+        AnalyzeImportInputCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(AnalyzeImportInputAsync, "分析导入输入失败", "Failed to analyze import input."));
+        ExecuteImportCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(ExecuteImportAsync, "执行导入失败", "Failed to execute import."));
+        ReaderPreviousPageCommand = new DelegateCommand(ShowPreviousPage);
+        ReaderNextPageCommand = new DelegateCommand(ShowNextPage);
+        ReaderToggleModeCommand = new DelegateCommand(ToggleReaderDisplayMode);
+        ReaderToggleDirectionCommand = new DelegateCommand(ToggleReadingDirection);
+        SearchRefreshCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(RefreshSearchWorkspaceAsync, "刷新搜索整理视图失败", "Failed to refresh search workspace."));
+        RetrySelectedFailedImportTaskCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(RetrySelectedFailedImportTaskAsync, "重新处理失败任务时出错", "Failed to retry failed import task."));
+        ApplySeriesRenameCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(ApplySeriesRenameAsync, "系列改名失败", "Failed to apply series rename."));
+        MergeSelectedSeriesCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(MergeSelectedSeriesAsync, "系列合并失败", "Failed to merge series."));
+        ApplyVolumeNumberCorrectionCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(ApplySelectedVolumeNumberCorrectionAsync, "卷号修正失败", "Failed to apply volume number correction."));
+        ApplySeriesMetadataCommand = new AsyncDelegateCommand(() => ExecuteSafeAsync(ApplySeriesMetadataAsync, "作者/标签更新失败", "Failed to apply series metadata edits."));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -108,6 +126,38 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<SeriesMergeTargetItemViewModel> MergeTargetSeriesOptions { get; } = [];
 
     public ObservableCollection<string> RecentImportPaths { get; } = [];
+
+    public ICommand GoToImportCommand { get; }
+
+    public ICommand OpenSelectedVolumeCommand { get; }
+
+    public ICommand OpenContinueReadingCommand { get; }
+
+    public ICommand OpenSelectedRecentReadingCommand { get; }
+
+    public ICommand AnalyzeImportInputCommand { get; }
+
+    public ICommand ExecuteImportCommand { get; }
+
+    public ICommand ReaderPreviousPageCommand { get; }
+
+    public ICommand ReaderNextPageCommand { get; }
+
+    public ICommand ReaderToggleModeCommand { get; }
+
+    public ICommand ReaderToggleDirectionCommand { get; }
+
+    public ICommand SearchRefreshCommand { get; }
+
+    public ICommand RetrySelectedFailedImportTaskCommand { get; }
+
+    public ICommand ApplySeriesRenameCommand { get; }
+
+    public ICommand MergeSelectedSeriesCommand { get; }
+
+    public ICommand ApplyVolumeNumberCorrectionCommand { get; }
+
+    public ICommand ApplySeriesMetadataCommand { get; }
 
     public string SelectedNavigation
     {
@@ -830,6 +880,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
+
+    private async Task ExecuteSafeAsync(
+        Func<CancellationToken, Task> operation,
+        string userMessagePrefix,
+        string logMessage,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await operation(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            ReportStatus($"{userMessagePrefix}：{ex.Message}");
+            Runtime.Logger.Error(logMessage, ex);
+        }
+    }
     public async Task LoadSeriesAsync(CancellationToken cancellationToken = default)
     {
         StatusMessage = "正在加载系列列表...";
