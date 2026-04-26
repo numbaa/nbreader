@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Avalonia.Media.Imaging;
+using NbReader.App.Services;
 using NbReader.Catalog;
 using NbReader.Import;
 using NbReader.Infrastructure;
@@ -66,11 +67,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly NearbyPageWindowPolicy _preloadPolicy = new(radius: 1);
     private readonly UnifiedVolumePageSource _pageSource = new();
 
-    public MainWindowViewModel(AppRuntime runtime)
+    public MainWindowViewModel(AppRuntime runtime, IImportPathPickerService importPathPickerService)
     {
         Runtime = runtime;
         Catalog = new CatalogSectionViewModel(this);
-        Import = new ImportSectionViewModel(this);
+        Import = new ImportSectionViewModel(this, importPathPickerService);
         Reader = new ReaderSectionViewModel(this);
         Search = new SearchSectionViewModel(this);
         SeriesCards.CollectionChanged += OnSeriesCardsChanged;

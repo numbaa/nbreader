@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using NbReader.App.Services;
 using NbReader.App.ViewModels;
 using NbReader.Infrastructure;
 
@@ -18,7 +19,9 @@ public partial class MainWindow : Window
     public MainWindow(AppRuntime runtime)
         : this()
     {
-        _viewModel = new MainWindowViewModel(runtime);
+        _viewModel = new MainWindowViewModel(
+            runtime,
+            new AvaloniaImportPathPickerService(() => TopLevel.GetTopLevel(this)));
         DataContext = _viewModel;
     }
 

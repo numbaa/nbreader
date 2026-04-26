@@ -31,10 +31,10 @@
                          PlaceholderText="例如：D:\\Comics\\OnePiece 或 D:\\Comics\\Vol01.zip" />
                 <Button Grid.Column="1"
                         Content="选目录"
-                        Click="OnImportPickFolderClick" />
+                        Command="{Binding PickFolderCommand}" />
                 <Button Grid.Column="2"
                         Content="选 zip"
-                        Click="OnImportPickZipClick" />
+                        Command="{Binding PickZipCommand}" />
                 <Button Grid.Column="3"
                         Content="分析输入"
                         IsEnabled="{Binding CanAnalyzeImportInput}"
