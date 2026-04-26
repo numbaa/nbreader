@@ -13,7 +13,7 @@ public partial class ImportView : UserControl
 
     private async void OnImportPickFolderClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel viewModel)
+        if (DataContext is not ImportSectionViewModel viewModel)
         {
             return;
         }
@@ -54,7 +54,7 @@ public partial class ImportView : UserControl
 
     private async void OnImportPickZipClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel viewModel)
+        if (DataContext is not ImportSectionViewModel viewModel)
         {
             return;
         }

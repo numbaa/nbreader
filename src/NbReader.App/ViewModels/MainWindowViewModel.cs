@@ -69,6 +69,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel(AppRuntime runtime)
     {
         Runtime = runtime;
+        Catalog = new CatalogSectionViewModel(this);
+        Import = new ImportSectionViewModel(this);
+        Reader = new ReaderSectionViewModel(this);
+        Search = new SearchSectionViewModel(this);
         SeriesCards.CollectionChanged += OnSeriesCardsChanged;
 
         Runtime.Settings.RecentImportPaths ??= [];
@@ -100,6 +104,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public AppRuntime Runtime { get; }
+
+    public CatalogSectionViewModel Catalog { get; }
+
+    public ImportSectionViewModel Import { get; }
+
+    public ReaderSectionViewModel Reader { get; }
+
+    public SearchSectionViewModel Search { get; }
 
     public string Title => "NbReader";
 

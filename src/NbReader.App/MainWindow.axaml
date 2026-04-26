@@ -70,10 +70,14 @@
         <Grid Grid.Column="1"
               Grid.Row="1"
               Margin="24">
-            <views:CatalogView IsVisible="{Binding IsCatalogSection}" />
-            <views:ImportView IsVisible="{Binding IsImportSection}" />
-            <views:ReaderView IsVisible="{Binding IsReaderSection}" />
-            <views:SearchView IsVisible="{Binding IsSearchSection}" />
+            <views:CatalogView DataContext="{Binding Catalog}"
+                               IsVisible="{Binding IsCatalogSection}" />
+            <views:ImportView DataContext="{Binding Import}"
+                              IsVisible="{Binding IsImportSection}" />
+            <views:ReaderView DataContext="{Binding Reader}"
+                              IsVisible="{Binding IsReaderSection}" />
+            <views:SearchView DataContext="{Binding Search}"
+                              IsVisible="{Binding IsSearchSection}" />
 
         </Grid>
 
