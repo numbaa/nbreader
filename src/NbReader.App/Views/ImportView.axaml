@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="using:NbReader.App.ViewModels"
+             x:Class="NbReader.App.Views.ImportView"
+             x:DataType="viewModels:ImportSectionViewModel"
+             x:CompileBindings="False">
+    <Border Background="#F8FAFC"
+            BorderBrush="#CBD5E1"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="20">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*"
+              RowSpacing="10">
+            <TextBlock Text="导入"
+                       FontSize="20"
+                       FontWeight="SemiBold" />
+            <TextBlock Grid.Row="1"
+                       Text="输入本地 zip 文件或图片目录路径，先分析再执行导入。"
+                       Foreground="#475569"
+                       TextWrapping="Wrap" />
+
+            <ComboBox Grid.Row="2"
+                      ItemsSource="{Binding RecentImportPaths}"
+                      SelectedItem="{Binding SelectedRecentImportPath, Mode=TwoWay}" />
+
+            <Grid Grid.Row="3"
+                  ColumnDefinitions="*,Auto,Auto,Auto,Auto"
+                  ColumnSpacing="8">
+                <TextBox Grid.Column="0"
+                         Text="{Binding ImportPathInput, Mode=TwoWay}"
+                         PlaceholderText="例如：D:\\Comics\\OnePiece 或 D:\\Comics\\Vol01.zip" />
+                <Button Grid.Column="1"
+                        Content="选目录"
+                        Command="{Binding PickFolderCommand}" />
+                <Button Grid.Column="2"
+                        Content="选 zip"
+                        Command="{Binding PickZipCommand}" />
+                <Button Grid.Column="3"
+                        Content="分析输入"
+                        IsEnabled="{Binding CanAnalyzeImportInput}"
+                        Command="{Binding AnalyzeImportInputCommand}" />
+                <Button Grid.Column="4"
+                        Content="执行导入"
+                        IsEnabled="{Binding CanExecuteImport}"
+                        Command="{Binding ExecuteImportCommand}" />
+            </Grid>
+
+            <Border Grid.Row="4"
+                    Background="#FFFFFF"
+                    BorderBrush="#E2E8F0"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="12">
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="12"
+                      RowDefinitions="Auto,Auto,Auto,Auto"
+                      RowSpacing="8">
+                    <TextBlock Text="{Binding ImportInputKindSummary}"
+                               Grid.ColumnSpan="2" />
+                    <TextBlock Grid.Row="1"
+                               Grid.ColumnSpan="2"
+                               Text="{Binding ImportPlanSummary}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding ImportWarningsSummary, StringFormat='告警：{0}'}"
+                               Foreground="#92400E"
+                               TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="2"
+                               Grid.Column="1"
+                               Text="{Binding ImportConflictsSummary, StringFormat='冲突：{0}'}"
+                               Foreground="#B91C1C"
+                               TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="3"
+                               Grid.ColumnSpan="2"
+                               Text="{Binding ImportExecutionSummary}"
+                               Foreground="#334155"
+                               TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="5"
+                    IsVisible="{Binding ImportRequiresConfirmation}"
+                    Background="#FFF7ED"
+                    BorderBrush="#FDBA74"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="12">
+                <Grid RowDefinitions="Auto,Auto,Auto"
+                      ColumnDefinitions="*"
+                      RowSpacing="8">
+                    <TextBlock Text="检测到需确认的导入计划，将在执行导入时应用以下策略。"
+                               Foreground="#9A3412"
+                               TextWrapping="Wrap" />
+                    <TextBox Grid.Row="1"
+                             Text="{Binding ImportSeriesNameOverride, Mode=TwoWay}"
+                             PlaceholderText="系列名覆盖（可选）" />
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                Spacing="14">
+                        <CheckBox Content="跳过重复卷号"
+                                  IsChecked="{Binding ImportSkipDuplicateVolumes, Mode=TwoWay}" />
+                        <CheckBox Content="忽略告警"
+                                  IsChecked="{Binding ImportIgnoreWarnings, Mode=TwoWay}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="6"
+                       Text="{Binding StatusMessage}"
+                       Foreground="#334155"
+                       TextWrapping="Wrap" />
+
+            <TextBlock Grid.Row="7"
+                       Text="导入完成后会自动刷新 Catalog，并同步搜索整理工作台。"
+                       Foreground="#64748B"
+                       TextWrapping="Wrap" />
+        </Grid>
+    </Border>
+</UserControl>

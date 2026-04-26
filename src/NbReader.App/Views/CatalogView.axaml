@@ -1,0 +1,190 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="using:NbReader.App.ViewModels"
+             x:Class="NbReader.App.Views.CatalogView"
+             x:DataType="viewModels:CatalogSectionViewModel"
+             x:CompileBindings="False">
+    <Border Background="#F8FAFC"
+            BorderBrush="#CBD5E1"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="20">
+        <Grid RowDefinitions="Auto,Auto,*"
+              ColumnDefinitions="2*,3*"
+              ColumnSpacing="16"
+              RowSpacing="12">
+            <TextBlock Text="系列卡片"
+                       FontSize="20"
+                       FontWeight="SemiBold" />
+            <TextBlock Grid.Row="1"
+                       Text="{Binding StatusMessage}"
+                       Foreground="#334155"
+                       TextWrapping="Wrap" />
+
+            <Border Grid.Row="2"
+                    Grid.Column="0"
+                    IsVisible="{Binding IsCatalogEmpty}"
+                    Background="#FFF7ED"
+                    BorderBrush="#FDBA74"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="12"
+                    Margin="0,0,0,10">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="书架暂无数据"
+                               FontWeight="SemiBold"
+                               Foreground="#9A3412" />
+                    <TextBlock Text="请先导入一个目录或 zip，然后返回 Catalog 查看系列。"
+                               Foreground="#9A3412"
+                               TextWrapping="Wrap" />
+                    <Button Content="去 Import"
+                            HorizontalAlignment="Left"
+                            Command="{Binding GoToImportCommand}" />
+                </StackPanel>
+            </Border>
+
+            <ListBox Grid.Row="2"
+                     Grid.Column="0"
+                     ItemsSource="{Binding SeriesCards}"
+                     SelectedItem="{Binding SelectedSeries, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:SeriesCardViewModel">
+                        <Border Background="#FFFFFF"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="12"
+                                Margin="0,0,0,10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding VolumeCount, StringFormat='卷数：{0}'}"
+                                           Foreground="#475569" />
+                                <TextBlock Text="{Binding LatestUpdatedText, StringFormat='最近更新：{0}'}"
+                                           Foreground="#64748B"
+                                           FontSize="12" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Grid.Row="0"
+                    Grid.Column="1"
+                    Grid.RowSpan="3"
+                    Background="#FFFFFF"
+                    BorderBrush="#E2E8F0"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="14">
+                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,*"
+                      RowSpacing="10">
+                    <TextBlock Text="系列详情"
+                               FontSize="18"
+                               FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding SeriesDetailTitle}"
+                               Foreground="#475569"
+                               TextWrapping="Wrap" />
+
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding VolumeCards}"
+                             SelectedItem="{Binding SelectedVolume, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="viewModels:VolumeCardViewModel">
+                                <Border BorderBrush="#E2E8F0"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="10"
+                                        Margin="0,0,0,8">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding PageCount, StringFormat='页数：{0}'}"
+                                                   Foreground="#64748B" />
+                                        <TextBlock Text="{Binding VolumeNumberText, StringFormat='卷号：{0}'}"
+                                                   Foreground="#64748B" />
+                                        <TextBlock Text="{Binding CreatedAtText, StringFormat='导入时间：{0}'}"
+                                                   FontSize="12"
+                                                   Foreground="#94A3B8" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Row="3"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                        <Button Content="打开所选卷"
+                                IsEnabled="{Binding CanOpenSelectedVolume}"
+                                Command="{Binding OpenSelectedVolumeCommand}" />
+                        <Button Content="继续阅读"
+                                IsEnabled="{Binding CanContinueReading}"
+                                Command="{Binding OpenContinueReadingCommand}" />
+                        <TextBlock Text="{Binding IsLoadingVolumes, StringFormat='加载卷中：{0}'}"
+                                   VerticalAlignment="Center"
+                                   Foreground="#64748B" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4"
+                                Spacing="4">
+                        <TextBlock Text="{Binding CatalogPrimaryActionHint}"
+                                   Foreground="#92400E"
+                                   IsVisible="{Binding ShouldShowCatalogPrimaryActionHint}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding ContinueReadingActionHint}"
+                                   Foreground="#92400E"
+                                   IsVisible="{Binding ShouldShowContinueReadingActionHint}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Border Grid.Row="5"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="10">
+                        <Grid RowDefinitions="Auto,Auto,*,Auto"
+                              RowSpacing="8">
+                            <TextBlock Text="最近阅读"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding ContinueReadingSummary}"
+                                       TextWrapping="Wrap"
+                                       Foreground="#475569" />
+                            <ListBox Grid.Row="2"
+                                     ItemsSource="{Binding RecentReadings}"
+                                     SelectedItem="{Binding SelectedRecentReading, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="viewModels:RecentReadingItemViewModel">
+                                        <Border BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8"
+                                                Margin="0,0,0,6">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding SeriesTitle}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding VolumeTitle}" />
+                                                <TextBlock Text="{Binding CurrentPageText, StringFormat='进度：{0}'}"
+                                                           Foreground="#64748B" />
+                                                <TextBlock Text="{Binding LastReadAtText, StringFormat='最近阅读：{0}'}"
+                                                           FontSize="12"
+                                                           Foreground="#94A3B8" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Button Grid.Row="3"
+                                    Content="打开所选最近记录"
+                                    IsEnabled="{Binding CanOpenSelectedRecentReading}"
+                                    Command="{Binding OpenSelectedRecentReadingCommand}" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
