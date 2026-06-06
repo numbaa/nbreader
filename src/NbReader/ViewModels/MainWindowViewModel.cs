@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NbReader.Core.Services;
+using SharpCompress.Common;
 
 namespace NbReader.ViewModels;
 
@@ -34,6 +35,15 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var fileSource = FileSourceFactory.Create(path);
+
+            // 检测空文件源（压缩包中无图片）
+            if (fileSource.PageCount == 0)
+            {
+                fileSource.Dispose();
+                Reader.StatusText = "❌ 文件中没有找到图片";
+                return;
+            }
+
             await Reader.LoadFileSourceAsync(fileSource);
             CurrentView = Reader;
         }

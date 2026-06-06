@@ -7,6 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="720"
         x:Class="NbReader.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
+        DragDrop.AllowDrop="True"
         Title="{Binding Reader.ComicName, StringFormat='NbReader - {0}', FallbackValue='NbReader'}"
         MinWidth="640" MinHeight="480">
 
