@@ -27,8 +27,8 @@ nbreader/
 │   │   │   └── ReaderViewModel.cs
 │   │   ├── Converters/             # 值转换器 ✅
 │   │   │   └── ImageConverter.cs   # IImage → Avalonia Bitmap
-│   │   ├── Services/               # UI 层服务（待实现）
-│   │   ├── Models/                 # UI 层模型（待实现）
+│   │   ├── Services/               # UI 层服务
+│   │   ├── Models/                 # UI 层模型
 │   │   └── Assets/                 # 静态资源
 │   │       └── avalonia-logo.ico
 │   │
@@ -42,19 +42,24 @@ nbreader/
 │   │   │   ├── ComicInfo.cs
 │   │   │   ├── PageInfo.cs
 │   │   │   └── ReadingProgress.cs
-│   │   ├── Services/               # 核心服务实现
+│   │   ├── Services/               # 核心服务实现 ✅
 │   │   │   ├── SkiaImage.cs        ✅ IImage 实现
 │   │   │   ├── SkiaImageLoader.cs  ✅ IImageLoader 实现
-│   │   │   └── (FileSource 实现待第 3 周)
+│   │   │   ├── DirectoryFileSource.cs  ✅ 图片文件夹文件源
+│   │   │   ├── CbzFileSource.cs        ✅ CBZ 压缩包文件源
+│   │   │   └── FileSourceFactory.cs    ✅ 文件源工厂
 │   │   └── Extensions/             # 扩展方法（待实现）
 │   │
 │   └── NbReader.Tests/             # 测试项目
 │       ├── NbReader.Tests.csproj
 │       ├── Core/                   # 核心逻辑测试
-│       │   ├── SkiaImageLoaderTests.cs  ✅ 6 个用例
-│       │   └── ImageConverterTests.cs   ✅ 4 个用例
+│       │   ├── SkiaImageLoaderTests.cs       ✅ 6 个用例
+│       │   ├── ImageConverterTests.cs        ✅ 4 个用例
+│       │   ├── DirectoryFileSourceTests.cs   ✅ 12 个用例
+│       │   ├── CbzFileSourceTests.cs         ✅ 12 个用例
+│       │   └── FileSourceFactoryTests.cs     ✅ 7 个用例
 │       └── UI/                     # UI 逻辑测试
-│           └── ReaderViewModelTests.cs  ✅ 6 个用例
+│           └── ReaderViewModelTests.cs       ✅ 6 个用例
 ```
 
 ---
@@ -209,15 +214,16 @@ sequenceDiagram
     participant FS as IFileSource
     participant IL as IImageLoader
 
-    U->>MW: 打开 CBZ 文件
-    MW->>MWVM: OpenFileCommand
-    MWVM->>FS: Create(filePath)
+    U->>MW: 打开文件 / 文件夹 / 拖放
+    MW->>MWVM: OpenFileAsync(path)
+    MWVM->>FS: FileSourceFactory.Create(path)
     FS-->>MWVM: IFileSource
     MWVM->>RVM: LoadFileSourceAsync(source)
     RVM->>FS: GetPageStreamAsync(0)
     FS-->>RVM: Stream
-    Note over RVM: TODO: IImageLoader 解码
-    RVM-->>MW: CurrentImage 属性变更通知
+    RVM->>IL: LoadAsync(stream)
+    IL-->>RVM: IImage
+    RVM-->>MW: DisplayBitmap 属性变更通知
     MW->>MW: 渲染图片
 ```
 
