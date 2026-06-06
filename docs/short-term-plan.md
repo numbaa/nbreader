@@ -49,23 +49,27 @@
 - [x] 支持格式：JPG, PNG, BMP, GIF, WebP（SkiaSharp 原生支持）
 - [x] 灰度图自动转 BGRA8888
 - [x] 实现 `ImageConverter`：SKBitmap → Avalonia Bitmap（`NbReader/Converters/`）
-- [x] 单元测试：10 个用例（SkiaImageLoader 6 + ImageConverter 4）
+- [x] 单元测试：10 个用例（SkiaImageLoaderTests 6 + ImageConverterTests 4，含 Headless 平台初始化）
 
 ### Day 4-5：阅读器视图 ✅
 
 - [x] 实现 `ReaderView` 用户控件（Avalonia UserControl）
-  - 居中显示图片（ScrollViewer + Image）
-  - Ctrl+鼠标滚轮缩放（以视口中心为锚点）
-  - 普通滚轮垂直滚动
-  - 鼠标中键拖拽平移
-  - 键盘翻页（← → PgUp PgDn Space）
-  - 键盘缩放（Ctrl+Plus/Minus/0）
-- [x] `ReaderViewModel` 完整对接 IImageLoader
-  - `DisplayBitmap` 属性（Avalonia Bitmap，供 View 绑定）
+  - `Stretch="Uniform"` + 修改 `Image.Width/Height` 实现真实缩放（非 RenderTransform）
+  - 视口中心锚点缩放偏移补偿
+  - Ctrl+鼠标滚轮缩放（Window 层 tunnel 拦截 → 改 VM.ZoomLevel → View 响应）
+  - 普通滚轮由 ScrollViewer 原生滚动
+  - 中键拖拽平移（ScrollViewer 隧道事件 + Pointer.Capture）
+  - 键盘翻页（MainWindow tunnel KeyDown → VM 命令）
+  - 键盘缩放（Ctrl+Plus/Minus/0 → VM 命令 → ApplyZoom）
+- [x] `ReaderViewModel` 完整对接
+  - `DisplayBitmap` 属性 → View 通过 PropertyChanged 监听自动更新
+  - `ZoomLevel` 属性 → View 监听变化自动 ApplyZoom
   - `IImageLoader` 构造函数注入
   - `LoadFileSourceAsync` → 解码 → DisplayBitmap
-  - `Close` 命令清理资源
-- [x] 单元测试：6 个用例（ReaderViewModel）
+  - `Close` 命令清理 IImage + DisplayBitmap 双资源
+  - `LoadDemoImageAsync` → 内置 `DemoFileSource`（3 页内存图片，可翻页验证）
+- [x] 单元测试：6 个用例（ReaderViewModel + FakeImageLoader）
+- [x] 中文字体回退：App.axaml 全局 TextBlock/Button/Window 样式 + SkiaSharp 显式加载微软雅黑
 
 ---
 
@@ -101,24 +105,24 @@
 
 ## 第 4 周：整合 & 基础 UI
 
-### Day 1-2：主窗口整合
+### Day 1-2：主窗口整合 🔧 部分完成
 
-- [ ] 实现完整的 `MainWindow.axaml` 布局
-  - 顶部工具栏（打开文件按钮）
-  - 中央 `ReaderView`
-  - 底部状态栏（页码、文件名）
-- [ ] 实现 `MainViewModel` 完整逻辑
-  - `OpenFileCommand` — 打开文件对话框
-  - 文件打开后自动加载到 `ReaderViewModel`
-  - 窗口标题显示文件名
+- [x] 实现完整的 `MainWindow.axaml` 布局
+  - 顶部工具栏（📂 打开 + 🎨 演示按钮）
+  - 中央 `ReaderView`（通过 ViewLocator 自动匹配 ReaderViewModel）
+  - 底部状态栏（页码、缩放百分比）
+- [x] 实现 `MainWindowViewModel` 完整逻辑
+  - `OpenFileCommand` — 占位（TODO: 对接文件对话框）
+  - `LoadDemoCommand` — 加载 3 页演示图片
+  - 窗口标题绑定 `Reader.ComicName`
+- [ ] `OpenFileCommand` 对接实际文件对话框 + FileSourceFactory
 
-### Day 3：翻页功能
+### Day 3：翻页功能 ✅
 
-- [ ] 实现 `PrevPageCommand` / `NextPageCommand`
-- [ ] 键盘快捷键：左/右箭头、PageUp/PageDown
-- [ ] 鼠标点击：左侧上一页、右侧下一页
-- [ ] 翻页边界处理（第一页/最后一页禁用）
-- [ ] 单元测试：翻页逻辑、边界条件
+- [x] 实现 `GoToPrevPageCommand` / `GoToNextPageCommand`（ReaderViewModel）
+- [x] 键盘快捷键（MainWindow tunnel KeyDown）：← → PgUp PgDn Space
+- [x] 翻页边界处理（第一页/最后一页时命令 NOP）
+- [x] 单元测试：ReaderViewModelTests 翻页边界 2 个用例
 
 ### Day 4-5：完善 & 打磨
 

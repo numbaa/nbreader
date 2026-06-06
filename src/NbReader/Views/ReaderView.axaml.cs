@@ -39,8 +39,6 @@ public partial class ReaderView : UserControl
         }
     }
 
-    public ReaderViewModel? ViewModel => DataContext as ReaderViewModel;
-
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -51,6 +49,8 @@ public partial class ReaderView : UserControl
             {
                 if (args.PropertyName == nameof(ReaderViewModel.DisplayBitmap))
                     SetImageSource(vm.DisplayBitmap);
+                else if (args.PropertyName == nameof(ReaderViewModel.ZoomLevel))
+                    ApplyZoom(vm.ZoomLevel);
             };
 
             SetImageSource(vm.DisplayBitmap);
@@ -70,10 +70,6 @@ public partial class ReaderView : UserControl
         }
     }
 
-    /// <summary>
-    /// 通过修改 Image 的 Width/Height 实现缩放。
-    /// 这会让 ScrollViewer 感知到真实内容大小，从而原生滚动。
-    /// </summary>
     public void ApplyZoom(double zoom)
     {
         if (_imageControl is null || _scrollViewer is null) return;
@@ -85,7 +81,6 @@ public partial class ReaderView : UserControl
         _imageControl.Width = _originalWidth * zoom;
         _imageControl.Height = _originalHeight * zoom;
 
-        // 以视口中心为锚调整滚动偏移
         if (oldW > 0 && oldH > 0)
         {
             var vw = _scrollViewer.Viewport.Width;
@@ -96,29 +91,8 @@ public partial class ReaderView : UserControl
                 Math.Max(0, (_scrollViewer.Offset.Y + vh / 2.0) * ratio - vh / 2.0));
         }
 
-        if (ViewModel is { } vm)
+        if (DataContext is ReaderViewModel vm)
             vm.ZoomLevel = zoom;
-    }
-
-    public double GetZoom()
-    {
-        if (_imageControl is null || _originalWidth <= 0) return 1.0;
-        return _imageControl.Width / _originalWidth;
-    }
-
-    /// <summary>
-    /// Ctrl+滚轮缩放。普通滚轮由 ScrollViewer 原生处理。
-    /// </summary>
-    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
-    {
-        if (e.KeyModifiers == KeyModifiers.Control)
-        {
-            var factor = e.Delta.Y > 0 ? 1.15 : 1.0 / 1.15;
-            ApplyZoom(GetZoom() * factor);
-            e.Handled = true;
-        }
-        // 不设 Handled → ScrollViewer 原生滚动
-        base.OnPointerWheelChanged(e);
     }
 
     // ─── 中键拖拽平移 ────────────────────────────────────────────────

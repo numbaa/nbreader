@@ -15,7 +15,7 @@
                 VerticalAlignment="Center"
                 Background="Transparent">
             <Image x:Name="ImageControl"
-                   Stretch="None"
+                   Stretch="Uniform"
                    RenderOptions.BitmapInterpolationMode="HighQuality" />
         </Border>
     </ScrollViewer>

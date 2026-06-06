@@ -19,12 +19,14 @@ nbreader/
 │   │   ├── Program.cs
 │   │   ├── ViewLocator.cs
 │   │   ├── Views/                  # 视图（AXAML + code-behind）
-│   │   │   └── MainWindow.axaml / .axaml.cs
+│   │   │   ├── MainWindow.axaml / .axaml.cs
+│   │   │   └── ReaderView.axaml / .axaml.cs  ✅
 │   │   ├── ViewModels/             # 视图模型
 │   │   │   ├── ViewModelBase.cs
 │   │   │   ├── MainWindowViewModel.cs
 │   │   │   └── ReaderViewModel.cs
-│   │   ├── Converters/             # 值转换器（待实现）
+│   │   ├── Converters/             # 值转换器 ✅
+│   │   │   └── ImageConverter.cs   # IImage → Avalonia Bitmap
 │   │   ├── Services/               # UI 层服务（待实现）
 │   │   ├── Models/                 # UI 层模型（待实现）
 │   │   └── Assets/                 # 静态资源
@@ -40,12 +42,17 @@ nbreader/
 │   │   │   ├── ComicInfo.cs
 │   │   │   ├── PageInfo.cs
 │   │   │   └── ReadingProgress.cs
-│   │   ├── Services/               # 核心服务实现（待实现）
+│   │   ├── Services/               # 核心服务实现
+│   │   │   ├── SkiaImage.cs        ✅ IImage 实现
+│   │   │   ├── SkiaImageLoader.cs  ✅ IImageLoader 实现
+│   │   │   └── (FileSource 实现待第 3 周)
 │   │   └── Extensions/             # 扩展方法（待实现）
 │   │
 │   └── NbReader.Tests/             # 测试项目
 │       ├── NbReader.Tests.csproj
-│       ├── Core/                   # 核心逻辑测试（待添加）
+│       ├── Core/                   # 核心逻辑测试
+│       │   ├── SkiaImageLoaderTests.cs  ✅ 6 个用例
+│       │   └── ImageConverterTests.cs   ✅ 4 个用例
 │       └── UI/                     # UI 逻辑测试
 │           └── ReaderViewModelTests.cs  ✅ 6 个用例
 ```
@@ -181,10 +188,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ReaderViewModel Reader { get; }
 
-    public MainWindowViewModel()
+    public MainWindowViewModel(ReaderViewModel reader)
     {
-        Reader = ((App)Application.Current!).Services.GetRequiredService<ReaderViewModel>();
-        CurrentView = Reader;
+        Reader = reader;
+        CurrentView = reader;
     }
 }
 ```
@@ -248,6 +255,21 @@ sequenceDiagram
 - **UI 线程：** 所有 Avalonia 属性绑定和 UI 更新
 - **后台线程：** 文件 I/O、图片解码、压缩包解压
 - **线程安全：** `ViewModelBase` 内置 `Dispatcher.UIThread` 调度
+
+---
+
+## 9. 事件路由架构
+
+为避免 Avalonia 控件树中事件被 ScrollViewer 等子控件拦截，采用 **Window 层 Tunnel（隧道）优先拦截** 策略：
+
+| 交互 | 处理层 | 策略 | 机制 |
+|------|--------|------|------|
+| 键盘翻页/缩放 | MainWindow | Tunnel KeyDown | `AddHandler(KeyDownEvent, ..., Tunnel, true)` 直接调 VM 命令 |
+| Ctrl+滚轮缩放 | MainWindow | Tunnel PointerWheel | 拦截 Ctrl 组合 → 改 `VM.ZoomLevel` → ReaderView 监听 → `ApplyZoom()` |
+| 普通滚轮滚动 | ScrollViewer | 原生（不拦截） | ReaderView 不重写 `OnPointerWheelChanged` |
+| 中键拖拽平移 | ScrollViewer | Tunnel Pointer | `AddHandler` 直接挂 ScrollViewer 上 + `Pointer.Capture` |
+
+**关键原则：** 缩放由 VM 驱动（`ZoomLevel` 属性），View 被动响应。ScrollViewer 原生行为不被干扰。
 
 ```csharp
 // ViewModel 中启动后台任务更新属性
