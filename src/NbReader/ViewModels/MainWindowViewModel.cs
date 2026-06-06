@@ -37,9 +37,25 @@ public partial class MainWindowViewModel : ViewModelBase
             await Reader.LoadFileSourceAsync(fileSource);
             CurrentView = Reader;
         }
+        catch (DirectoryNotFoundException)
+        {
+            Reader.StatusText = "❌ 目录不存在，请检查路径";
+        }
+        catch (FileNotFoundException)
+        {
+            Reader.StatusText = "❌ 文件不存在，请检查路径";
+        }
+        catch (NotSupportedException ex)
+        {
+            Reader.StatusText = $"❌ 不支持的格式: {ex.Message}";
+        }
+        catch (SharpCompress.Common.ArchiveException)
+        {
+            Reader.StatusText = "❌ 压缩包损坏或格式无效";
+        }
         catch (Exception ex)
         {
-            Reader.StatusText = $"打开失败: {ex.Message}";
+            Reader.StatusText = $"❌ 打开失败: {ex.Message}";
         }
     }
 

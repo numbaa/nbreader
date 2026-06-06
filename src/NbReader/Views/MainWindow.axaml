@@ -32,17 +32,40 @@
         </Border>
 
         <!-- 中央阅读区域 — 使用 ViewLocator 自动匹配 ReaderView -->
-        <ContentControl Grid.Row="1"
-                        Content="{Binding CurrentView}"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Stretch" />
+        <Grid Grid.Row="1">
+            <ContentControl Content="{Binding CurrentView}"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch" />
+
+            <!-- 加载状态覆盖层 -->
+            <Border IsVisible="{Binding Reader.IsLoading}"
+                    Background="#88000000"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="200" Height="6" />
+                    <TextBlock Text="{Binding Reader.StatusText}"
+                               Foreground="White"
+                               FontSize="14"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <!-- 底部状态栏 -->
         <Border Grid.Row="2" Padding="8,4"
                 Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
             <StackPanel Orientation="Horizontal" Spacing="16">
-                <TextBlock Text="{Binding Reader.StatusText}" FontSize="12" />
-                <TextBlock FontSize="12" Foreground="Gray">
+                <ProgressBar IsVisible="{Binding Reader.IsLoading}"
+                             IsIndeterminate="True"
+                             Width="80" Height="10" />
+                <TextBlock Text="{Binding Reader.StatusText}" FontSize="12"
+                           VerticalAlignment="Center" />
+                <TextBlock FontSize="12" Foreground="Gray"
+                           VerticalAlignment="Center">
                     <Run Text="缩放: " /><Run Text="{Binding Reader.ZoomLevel, StringFormat={}{0:P0}}" />
                 </TextBlock>
             </StackPanel>

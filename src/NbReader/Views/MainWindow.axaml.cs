@@ -147,6 +147,13 @@ public partial class MainWindow : Window
                 reader.ZoomResetCommand.Execute(null);
                 e.Handled = true;
                 break;
+
+            case Key.F11:
+                WindowState = WindowState == WindowState.FullScreen
+                    ? WindowState.Normal
+                    : WindowState.FullScreen;
+                e.Handled = true;
+                break;
         }
     }
 }

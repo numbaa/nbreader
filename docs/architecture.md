@@ -271,9 +271,11 @@ sequenceDiagram
 | 交互 | 处理层 | 策略 | 机制 |
 |------|--------|------|------|
 | 键盘翻页/缩放 | MainWindow | Tunnel KeyDown | `AddHandler(KeyDownEvent, ..., Tunnel, true)` 直接调 VM 命令 |
+| F11 全屏切换 | MainWindow | Tunnel KeyDown | 同上，切换 `WindowState` |
 | Ctrl+滚轮缩放 | MainWindow | Tunnel PointerWheel | 拦截 Ctrl 组合 → 改 `VM.ZoomLevel` → ReaderView 监听 → `ApplyZoom()` |
 | 普通滚轮滚动 | ScrollViewer | 原生（不拦截） | ReaderView 不重写 `OnPointerWheelChanged` |
 | 中键拖拽平移 | ScrollViewer | Tunnel Pointer | `AddHandler` 直接挂 ScrollViewer 上 + `Pointer.Capture` |
+| 拖放文件 | MainWindow | Bubble | `AddHandler(DragDrop.DropEvent, OnDrop)` |
 
 **关键原则：** 缩放由 VM 驱动（`ZoomLevel` 属性），View 被动响应。ScrollViewer 原生行为不被干扰。
 
