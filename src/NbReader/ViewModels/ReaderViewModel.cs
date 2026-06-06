@@ -46,80 +46,107 @@ public partial class ReaderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// [验证用] 加载演示测试图片（无文件依赖）。
+    /// [验证用] 加载 3 页演示图片（无文件依赖，可测试翻页）。
     /// </summary>
     public async Task LoadDemoImageAsync()
     {
-        using var stream = CreateDemoImageStream();
-        var image = await _imageLoader.LoadAsync(stream);
-
-        CurrentImage?.Dispose();
-        CurrentImage = image;
-        DisplayBitmap?.Dispose();
-        DisplayBitmap = Converters.ImageConverter.ToAvaloniaBitmap(image);
-
-        ComicName = "🎨 演示图片";
-        TotalPages = 1;
-        CurrentPageIndex = 0;
-        StatusText = $"1 / 1   {image.Width}×{image.Height}";
-        IsLoading = false;
+        var demoSource = new DemoFileSource();
+        await LoadFileSourceAsync(demoSource);
     }
 
     /// <summary>
-    /// 生成演示图片（渐变 + 文字 + 网格线）。
+    /// 生成演示图片流。
     /// </summary>
-    private static Stream CreateDemoImageStream()
+    internal static Stream CreateDemoPageStream(int pageIndex, int totalPages)
     {
         const int w = 800, h = 600;
-        var bitmap = new SkiaSharp.SKBitmap(w, h, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Premul);
-        using var canvas = new SkiaSharp.SKCanvas(bitmap);
+        var bitmap = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var canvas = new SKCanvas(bitmap);
 
-        // 背景
-        canvas.Clear(SkiaSharp.SKColors.DarkSlateGray);
+        // 不同页面不同背景色
+        var colors = new[] {
+            new SKColor(50, 60, 80),
+            new SKColor(60, 50, 70),
+            new SKColor(40, 60, 60)
+        };
+        var bgColor = colors[pageIndex % colors.Length];
 
-        // 方格棋盘图案
-        const int cellSize = 40;
-        using var paint = new SkiaSharp.SKPaint();
-        for (int y = 0; y < h; y += cellSize)
+        // 棋盘格背景
+        const int cell = 40;
+        using var paint = new SKPaint();
+        for (int y = 0; y < h; y += cell)
         {
-            for (int x = 0; x < w; x += cellSize)
+            for (int x = 0; x < w; x += cell)
             {
-                paint.Color = ((x / cellSize + y / cellSize) % 2 == 0)
-                    ? new SkiaSharp.SKColor(60, 60, 80)
-                    : new SkiaSharp.SKColor(40, 40, 60);
-                canvas.DrawRect(x, y, cellSize, cellSize, paint);
+                paint.Color = ((x / cell + y / cell) % 2 == 0)
+                    ? bgColor
+                    : new SKColor((byte)(bgColor.Red + 20), (byte)(bgColor.Green + 20), (byte)(bgColor.Blue + 20));
+                canvas.DrawRect(x, y, cell, cell, paint);
             }
         }
 
-        // 彩色圆
-        paint.Color = new SkiaSharp.SKColor(220, 80, 80, 180);
+        // 彩色圆形
+        var circleColors = new[] {
+            new SKColor(220, 80, 80, 180),
+            new SKColor(80, 220, 120, 180),
+            new SKColor(80, 180, 220, 180)
+        };
+        paint.Color = circleColors[pageIndex % circleColors.Length];
         canvas.DrawCircle(w / 2f, h / 2f, 120, paint);
-        paint.Color = new SkiaSharp.SKColor(80, 180, 220, 180);
-        canvas.DrawCircle(w / 3f, h / 2f, 80, paint);
-        paint.Color = new SkiaSharp.SKColor(80, 220, 120, 180);
-        canvas.DrawCircle(w * 2f / 3f, h / 2f, 80, paint);
 
-        // 文字 — 使用中文字体
-        var typeface = SkiaSharp.SKTypeface.FromFamilyName("Microsoft YaHei")
-            ?? SkiaSharp.SKTypeface.Default;
-
-        using var font = new SkiaSharp.SKFont(typeface, 32);
-        paint.Color = SkiaSharp.SKColors.White;
+        // 页码文字
+        var typeface = SKTypeface.FromFamilyName("Microsoft YaHei") ?? SKTypeface.Default;
+        using var font = new SKFont(typeface, 36);
+        paint.Color = SKColors.White;
         paint.IsAntialias = true;
-        paint.Style = SkiaSharp.SKPaintStyle.Fill;
-        canvas.DrawText("NbReader 演示图片", w / 2f - 160, 50, font, paint);
+        paint.Style = SKPaintStyle.Fill;
+        var pageText = $"第 {pageIndex + 1} 页 / 共 {totalPages} 页";
+        canvas.DrawText(pageText, w / 2f - 160, 60, font, paint);
 
-        using var smallFont = new SkiaSharp.SKFont(typeface, 18);
-        canvas.DrawText("Ctrl+滚轮 缩放 | 中键拖拽 平移 | ← → 翻页", w / 2f - 210, h - 30, smallFont, paint);
+        using var smallFont = new SKFont(typeface, 16);
+        canvas.DrawText("Ctrl+滚轮 缩放 | 中键拖拽 平移 | ← → 翻页", w / 2f - 195, h - 30, smallFont, paint);
 
         canvas.Flush();
 
-        using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 90);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 90);
         var stream = new MemoryStream();
         data.SaveTo(stream);
         stream.Position = 0;
         return stream;
+    }
+
+    /// <summary>
+    /// 演示用 IFileSource：内存中生成 3 页图片。
+    /// </summary>
+    private sealed class DemoFileSource : IFileSource
+    {
+        private readonly List<byte[]> _pages = new();
+        public string Name => "🎨 演示（3 页）";
+        public int PageCount => _pages.Count;
+
+        public DemoFileSource()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                using var s = CreateDemoPageStream(i, 3);
+                using var ms = new MemoryStream();
+                s.CopyTo(ms);
+                _pages.Add(ms.ToArray());
+            }
+        }
+
+        public Task<Stream> GetPageStreamAsync(int pageIndex)
+        {
+            if (pageIndex < 0 || pageIndex >= _pages.Count)
+                throw new ArgumentOutOfRangeException(nameof(pageIndex));
+            return Task.FromResult<Stream>(new MemoryStream(_pages[pageIndex]));
+        }
+
+        public Task<Stream?> GetThumbnailStreamAsync(int pageIndex)
+            => Task.FromResult<Stream?>(null);
+
+        public void Dispose() => _pages.Clear();
     }
 
     /// <summary>

@@ -1,20 +1,20 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using NbReader.ViewModels;
 
 namespace NbReader.Views;
 
-/// <summary>
-/// 阅读器视图：图片缩放、平移、翻页。
-/// </summary>
 public partial class ReaderView : UserControl
 {
     private Image? _imageControl;
     private ScrollViewer? _scrollViewer;
-    private Avalonia.Point _lastMousePosition;
+    private double _originalWidth;
+    private double _originalHeight;
+    private Point _lastMousePosition;
     private bool _isPanning;
 
     public ReaderView()
@@ -27,7 +27,19 @@ public partial class ReaderView : UserControl
         base.OnInitialized();
         _imageControl = this.FindControl<Image>("ImageControl");
         _scrollViewer = this.FindControl<ScrollViewer>("ScrollViewer");
+
+        if (_scrollViewer is not null)
+        {
+            _scrollViewer.AddHandler(PointerPressedEvent, OnScrollPointerPressed,
+                RoutingStrategies.Tunnel, handledEventsToo: true);
+            _scrollViewer.AddHandler(PointerMovedEvent, OnScrollPointerMoved,
+                RoutingStrategies.Tunnel, handledEventsToo: true);
+            _scrollViewer.AddHandler(PointerReleasedEvent, OnScrollPointerReleased,
+                RoutingStrategies.Tunnel, handledEventsToo: true);
+        }
     }
+
+    public ReaderViewModel? ViewModel => DataContext as ReaderViewModel;
 
     protected override void OnDataContextChanged(EventArgs e)
     {
@@ -38,9 +50,7 @@ public partial class ReaderView : UserControl
             vm.PropertyChanged += (s, args) =>
             {
                 if (args.PropertyName == nameof(ReaderViewModel.DisplayBitmap))
-                {
                     SetImageSource(vm.DisplayBitmap);
-                }
             };
 
             SetImageSource(vm.DisplayBitmap);
@@ -51,158 +61,102 @@ public partial class ReaderView : UserControl
     {
         if (_imageControl is null) return;
         _imageControl.Source = bitmap;
+
         if (bitmap is not null)
         {
-            ResetView();
+            _originalWidth = bitmap.Size.Width;
+            _originalHeight = bitmap.Size.Height;
+            ApplyZoom(1.0);
         }
     }
 
     /// <summary>
-    /// 重置视图（缩放 1:1，居中）。
+    /// 通过修改 Image 的 Width/Height 实现缩放。
+    /// 这会让 ScrollViewer 感知到真实内容大小，从而原生滚动。
     /// </summary>
-    public void ResetView()
-    {
-        if (_imageControl is null || _scrollViewer is null) return;
-
-        _imageControl.RenderTransform = new ScaleTransform(1.0, 1.0);
-        _scrollViewer.Offset = new Vector(0, 0);
-    }
-
-    /// <summary>
-    /// 以视口中心为锚点设置缩放。
-    /// </summary>
-    private void SetZoom(double zoom)
+    public void ApplyZoom(double zoom)
     {
         if (_imageControl is null || _scrollViewer is null) return;
 
         zoom = Math.Clamp(zoom, 0.1, 10.0);
+        var oldW = _imageControl.Width;
+        var oldH = _imageControl.Height;
 
-        var viewportW = _scrollViewer.Viewport.Width;
-        var viewportH = _scrollViewer.Viewport.Height;
-        var centerX = viewportW / 2.0 + _scrollViewer.Offset.X;
-        var centerY = viewportH / 2.0 + _scrollViewer.Offset.Y;
+        _imageControl.Width = _originalWidth * zoom;
+        _imageControl.Height = _originalHeight * zoom;
 
-        var oldZoom = (_imageControl.RenderTransform as ScaleTransform)?.ScaleX ?? 1.0;
-        if (Math.Abs(oldZoom - zoom) < 0.0001) return;
-
-        var ratio = zoom / oldZoom;
-
-        _imageControl.RenderTransform = new ScaleTransform(zoom, zoom);
-
-        var newOffsetX = centerX * ratio - viewportW / 2.0;
-        var newOffsetY = centerY * ratio - viewportH / 2.0;
-        _scrollViewer.Offset = new Vector(Math.Max(0, newOffsetX), Math.Max(0, newOffsetY));
-
-        if (DataContext is ReaderViewModel vm)
+        // 以视口中心为锚调整滚动偏移
+        if (oldW > 0 && oldH > 0)
         {
-            vm.ZoomLevel = zoom;
+            var vw = _scrollViewer.Viewport.Width;
+            var vh = _scrollViewer.Viewport.Height;
+            var ratio = zoom / (oldW / _originalWidth);
+            _scrollViewer.Offset = new Vector(
+                Math.Max(0, (_scrollViewer.Offset.X + vw / 2.0) * ratio - vw / 2.0),
+                Math.Max(0, (_scrollViewer.Offset.Y + vh / 2.0) * ratio - vh / 2.0));
         }
+
+        if (ViewModel is { } vm)
+            vm.ZoomLevel = zoom;
+    }
+
+    public double GetZoom()
+    {
+        if (_imageControl is null || _originalWidth <= 0) return 1.0;
+        return _imageControl.Width / _originalWidth;
     }
 
     /// <summary>
-    /// Ctrl+滚轮缩放，普通滚轮垂直滚动。
+    /// Ctrl+滚轮缩放。普通滚轮由 ScrollViewer 原生处理。
     /// </summary>
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
-        base.OnPointerWheelChanged(e);
-
         if (e.KeyModifiers == KeyModifiers.Control)
         {
-            var oldZoom = (_imageControl?.RenderTransform as ScaleTransform)?.ScaleX ?? 1.0;
             var factor = e.Delta.Y > 0 ? 1.15 : 1.0 / 1.15;
-            SetZoom(oldZoom * factor);
+            ApplyZoom(GetZoom() * factor);
             e.Handled = true;
         }
-        else if (_scrollViewer is not null)
-        {
-            var delta = e.Delta.Y * 40;
-            _scrollViewer.Offset = new Vector(
-                _scrollViewer.Offset.X,
-                Math.Max(0, _scrollViewer.Offset.Y - delta));
-            e.Handled = true;
-        }
+        // 不设 Handled → ScrollViewer 原生滚动
+        base.OnPointerWheelChanged(e);
     }
 
-    /// <summary>
-    /// 鼠标中键拖拽平移。
-    /// </summary>
-    protected override void OnPointerPressed(PointerPressedEventArgs e)
-    {
-        base.OnPointerPressed(e);
+    // ─── 中键拖拽平移 ────────────────────────────────────────────────
 
-        var point = e.GetCurrentPoint(this);
+    private void OnScrollPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(_scrollViewer);
         if (point.Properties.IsMiddleButtonPressed)
         {
             _isPanning = true;
-            _lastMousePosition = e.GetPosition(this);
+            _lastMousePosition = e.GetPosition(_scrollViewer);
             Cursor = new Cursor(StandardCursorType.SizeAll);
+            e.Pointer.Capture(_scrollViewer);
             e.Handled = true;
         }
     }
 
-    protected override void OnPointerMoved(PointerEventArgs e)
+    private void OnScrollPointerMoved(object? sender, PointerEventArgs e)
     {
-        base.OnPointerMoved(e);
-
         if (!_isPanning || _scrollViewer is null) return;
 
-        var currentPos = e.GetPosition(this);
-        var delta = _lastMousePosition - currentPos;
-
+        var pos = e.GetPosition(_scrollViewer);
+        var delta = _lastMousePosition - pos;
         _scrollViewer.Offset = new Vector(
             _scrollViewer.Offset.X + delta.X,
             _scrollViewer.Offset.Y + delta.Y);
-
-        _lastMousePosition = currentPos;
+        _lastMousePosition = pos;
         e.Handled = true;
     }
 
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    private void OnScrollPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        base.OnPointerReleased(e);
-        _isPanning = false;
-        Cursor = Cursor.Default;
-    }
-
-    /// <summary>
-    /// 键盘快捷键：翻页、缩放。
-    /// </summary>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-
-        if (DataContext is not ReaderViewModel vm) return;
-
-        switch (e.Key)
+        if (_isPanning)
         {
-            case Key.Left:
-            case Key.PageUp:
-                vm.GoToPrevPageCommand.Execute(null);
-                e.Handled = true;
-                break;
-
-            case Key.Right:
-            case Key.PageDown:
-            case Key.Space:
-                vm.GoToNextPageCommand.Execute(null);
-                e.Handled = true;
-                break;
-
-            case Key.OemPlus or Key.Add when e.KeyModifiers == KeyModifiers.Control:
-                SetZoom((_imageControl?.RenderTransform as ScaleTransform)?.ScaleX * 1.25 ?? 1.25);
-                e.Handled = true;
-                break;
-
-            case Key.OemMinus or Key.Subtract when e.KeyModifiers == KeyModifiers.Control:
-                SetZoom((_imageControl?.RenderTransform as ScaleTransform)?.ScaleX / 1.25 ?? 0.8);
-                e.Handled = true;
-                break;
-
-            case Key.D0 or Key.NumPad0 when e.KeyModifiers == KeyModifiers.Control:
-                ResetView();
-                if (DataContext is ReaderViewModel vm2) vm2.ZoomLevel = 1.0;
-                e.Handled = true;
-                break;
+            e.Pointer.Capture(null);
+            _isPanning = false;
+            Cursor = Cursor.Default;
+            e.Handled = true;
         }
     }
 }
