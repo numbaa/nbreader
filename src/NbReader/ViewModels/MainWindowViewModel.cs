@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NbReader.Core.Services;
 
 namespace NbReader.ViewModels;
 
@@ -26,13 +27,20 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 打开漫画文件。
+    /// 打开漫画文件（由 View 层调用，传入文件/文件夹路径）。
     /// </summary>
-    [RelayCommand]
-    private async Task OpenFileAsync()
+    public async Task OpenFileAsync(string path)
     {
-        // TODO: 实现文件打开对话框 + FileSourceFactory（第 3 周）
-        await Task.CompletedTask;
+        try
+        {
+            var fileSource = FileSourceFactory.Create(path);
+            await Reader.LoadFileSourceAsync(fileSource);
+            CurrentView = Reader;
+        }
+        catch (Exception ex)
+        {
+            Reader.StatusText = $"打开失败: {ex.Message}";
+        }
     }
 
     /// <summary>

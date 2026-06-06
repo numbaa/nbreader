@@ -75,47 +75,48 @@
 
 ## 第 3 周：文件格式解析
 
-### Day 1-2：图片文件夹读取
+### Day 1-2：图片文件夹读取 ✅
 
-- [ ] 实现 `IFileSource` 接口
-- [ ] 实现 `DirectoryFileSource`
+- [x] 实现 `IFileSource` 接口
+- [x] 实现 `DirectoryFileSource`
   - 扫描文件夹，收集图片文件
   - 按文件名自然排序
   - 支持子文件夹递归（可选）
-- [ ] 单元测试：排序逻辑、过滤非图片文件
+- [x] 单元测试：排序逻辑、过滤非图片文件（12 个用例）
 
-### Day 3-4：CBZ 格式支持
+### Day 3-4：CBZ 格式支持 ✅
 
-- [ ] 引入 `System.IO.Compression` 处理 ZIP
-- [ ] 实现 `CbzFileSource`
+- [x] 引入 `SharpCompress` 处理 ZIP
+- [x] 实现 `CbzFileSource`
   - 内存中解压 ZIP 条目
   - 过滤图片条目
   - 按名称排序
-- [ ] 处理边界情况：嵌套目录、非图片文件、损坏压缩包
-- [ ] 单元测试：正常 CBZ、空 CBZ、损坏 CBZ
+- [x] 处理边界情况：嵌套目录、非图片文件、损坏压缩包
+- [x] 单元测试：正常 CBZ、空 CBZ、损坏 CBZ（12 个用例）
 
-### Day 5：统一文件源
+### Day 5：统一文件源 ✅
 
-- [ ] 实现 `FileSourceFactory` 工厂类
+- [x] 实现 `FileSourceFactory` 工厂类
   - 根据文件扩展名自动选择 `IFileSource` 实现
   - 默认回退为目录模式
-- [ ] 单元测试：工厂路由逻辑
+- [x] 单元测试：工厂路由逻辑（7 个用例）
 
 ---
 
 ## 第 4 周：整合 & 基础 UI
 
-### Day 1-2：主窗口整合 🔧 部分完成
+### Day 1-2：主窗口整合 ✅
 
 - [x] 实现完整的 `MainWindow.axaml` 布局
-  - 顶部工具栏（📂 打开 + 🎨 演示按钮）
+  - 顶部工具栏（📂 打开文件 + 📁 打开文件夹 + 🎨 演示按钮）
   - 中央 `ReaderView`（通过 ViewLocator 自动匹配 ReaderViewModel）
   - 底部状态栏（页码、缩放百分比）
 - [x] 实现 `MainWindowViewModel` 完整逻辑
-  - `OpenFileCommand` — 占位（TODO: 对接文件对话框）
+  - `OpenFileAsync(path)` — 对接 FileSourceFactory + 文件对话框
   - `LoadDemoCommand` — 加载 3 页演示图片
   - 窗口标题绑定 `Reader.ComicName`
-- [ ] `OpenFileCommand` 对接实际文件对话框 + FileSourceFactory
+- [x] `OpenFileAsync` 对接实际文件对话框 + FileSourceFactory
+- [x] 拖放文件到窗口打开
 
 ### Day 3：翻页功能 ✅
 
@@ -126,7 +127,7 @@
 
 ### Day 4-5：完善 & 打磨
 
-- [ ] 拖放文件到窗口打开
+- [x] 拖放文件到窗口打开
 - [ ] 全屏模式（F11）
 - [ ] 错误处理：文件不存在、格式不支持
 - [ ] 加载状态提示
@@ -162,8 +163,8 @@
 ## 验收标准（MVP v0.5）
 
 - [x] 双击启动应用，显示空白窗口 → 目标：显示带工具栏的窗口
-- [ ] 能通过菜单/按钮打开 CBZ 文件
-- [ ] 能打开包含图片的文件夹
+- [x] 能通过菜单/按钮打开 CBZ 文件
+- [x] 能打开包含图片的文件夹
 - [ ] 图片正确渲染，支持鼠标缩放和平移
 - [ ] 能通过键盘/鼠标翻页
 - [ ] 底部状态栏显示页码和文件名
