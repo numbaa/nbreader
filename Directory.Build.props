@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Authors>NbReader</Authors>
+    <Description>一个跨平台漫画阅读器</Description>
+    <Copyright>MIT License</Copyright>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
