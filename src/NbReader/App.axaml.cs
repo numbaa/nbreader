@@ -5,6 +5,8 @@ using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using NbReader.Core.Abstractions;
+using NbReader.Core.Services;
 using NbReader.ViewModels;
 using NbReader.Views;
 
@@ -45,6 +47,9 @@ public partial class App : Application
     /// </summary>
     private static void ConfigureServices(IServiceCollection services)
     {
+        // Core 服务
+        services.AddSingleton<IImageLoader, SkiaImageLoader>();
+
         // ViewModels — 单例（整个应用生命周期内保持状态）
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<ReaderViewModel>();

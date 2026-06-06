@@ -1,3 +1,7 @@
+using NbReader.Core.Abstractions;
+using NbReader.ViewModels;
+using SkiaSharp;
+
 namespace NbReader.Tests.UI;
 
 /// <summary>
@@ -5,11 +9,16 @@ namespace NbReader.Tests.UI;
 /// </summary>
 public class ReaderViewModelTests
 {
+    private static IImageLoader CreateFakeLoader()
+    {
+        return new FakeImageLoader();
+    }
+
     [Fact]
     public void Constructor_ShouldInitializeWithDefaults()
     {
         // Arrange & Act
-        var vm = new ViewModels.ReaderViewModel();
+        var vm = new ReaderViewModel(CreateFakeLoader());
 
         // Assert
         vm.CurrentPageIndex.Should().Be(0);
@@ -19,13 +28,14 @@ public class ReaderViewModelTests
         vm.StatusText.Should().Be("就绪");
         vm.ComicName.Should().BeEmpty();
         vm.CurrentImage.Should().BeNull();
+        vm.DisplayBitmap.Should().BeNull();
     }
 
     [Fact]
     public void GoToPrevPage_WhenAtFirstPage_ShouldNotChangePage()
     {
         // Arrange
-        var vm = new ViewModels.ReaderViewModel();
+        var vm = new ReaderViewModel(CreateFakeLoader());
 
         // Act
         vm.GoToPrevPageCommand.Execute(null);
@@ -38,7 +48,7 @@ public class ReaderViewModelTests
     public void GoToNextPage_WhenNoPages_ShouldNotChangePage()
     {
         // Arrange
-        var vm = new ViewModels.ReaderViewModel();
+        var vm = new ReaderViewModel(CreateFakeLoader());
 
         // Act
         vm.GoToNextPageCommand.Execute(null);
@@ -51,7 +61,7 @@ public class ReaderViewModelTests
     public void ZoomIn_ShouldIncreaseZoomLevel()
     {
         // Arrange
-        var vm = new ViewModels.ReaderViewModel();
+        var vm = new ReaderViewModel(CreateFakeLoader());
         var originalZoom = vm.ZoomLevel;
 
         // Act
@@ -65,7 +75,7 @@ public class ReaderViewModelTests
     public void ZoomOut_ShouldDecreaseZoomLevel()
     {
         // Arrange
-        var vm = new ViewModels.ReaderViewModel();
+        var vm = new ReaderViewModel(CreateFakeLoader());
 
         // Act
         vm.ZoomOutCommand.Execute(null);
@@ -78,7 +88,7 @@ public class ReaderViewModelTests
     public void ZoomReset_ShouldResetToOriginalZoom()
     {
         // Arrange
-        var vm = new ViewModels.ReaderViewModel();
+        var vm = new ReaderViewModel(CreateFakeLoader());
         vm.ZoomInCommand.Execute(null);
         vm.ZoomInCommand.Execute(null);
 
@@ -87,5 +97,29 @@ public class ReaderViewModelTests
 
         // Assert
         vm.ZoomLevel.Should().Be(1.0);
+    }
+}
+
+/// <summary>
+/// 测试用 Fake IImageLoader：生成纯色测试图片。
+/// </summary>
+internal class FakeImageLoader : IImageLoader
+{
+    public Task<IImage> LoadAsync(Stream stream)
+    {
+        return Task.FromResult<IImage>(CreateTestImage(100, 100, SKColors.Red));
+    }
+
+    public Task<IImage> LoadAsync(string filePath)
+    {
+        return Task.FromResult<IImage>(CreateTestImage(200, 150, SKColors.Blue));
+    }
+
+    internal static IImage CreateTestImage(int width, int height, SKColor color)
+    {
+        var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(color);
+        return new NbReader.Core.Services.SkiaImage(bitmap);
     }
 }

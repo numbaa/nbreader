@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             x:Class="NbReader.Views.ReaderView"
+             Background="Transparent"
+             Focusable="True">
+
+    <ScrollViewer x:Name="ScrollViewer"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto"
+                  Background="#FF1E1E1E">
+        <Border HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="Transparent">
+            <Image x:Name="ImageControl"
+                   Stretch="None"
+                   RenderOptions.BitmapInterpolationMode="HighQuality" />
+        </Border>
+    </ScrollViewer>
+
+</UserControl>

@@ -8,8 +8,18 @@
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
-  
+
     <Application.Styles>
         <FluentTheme />
+        <!-- 全局中文字体回退：所有文本控件都生效 -->
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="Inter, Microsoft YaHei, SimHei" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="FontFamily" Value="Inter, Microsoft YaHei, SimHei" />
+        </Style>
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="Inter, Microsoft YaHei, SimHei" />
+        </Style>
     </Application.Styles>
 </Application>

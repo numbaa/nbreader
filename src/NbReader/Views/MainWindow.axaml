@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="720"
         x:Class="NbReader.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="NbReader"
+        Title="{Binding Reader.ComicName, StringFormat='NbReader - {0}', FallbackValue='NbReader'}"
         MinWidth="640" MinHeight="480">
 
     <Design.DataContext>
@@ -16,9 +16,13 @@
 
     <Grid RowDefinitions="Auto,*,Auto">
         <!-- 顶部工具栏 -->
-        <Border Grid.Row="0" Padding="4" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Padding="4"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="打开" Command="{Binding OpenFileCommand}" />
+                <Button Content="📂 打开" Command="{Binding OpenFileCommand}" />
+                <Button Content="🎨 演示" Command="{Binding LoadDemoCommand}"
+                        Background="#FF3A6B35" Foreground="White" />
                 <Separator Width="1" Height="20" />
                 <TextBlock Text="{Binding Reader.ComicName}"
                            VerticalAlignment="Center"
@@ -26,65 +30,21 @@
             </StackPanel>
         </Border>
 
-        <!-- 中央阅读区域 -->
+        <!-- 中央阅读区域 — 使用 ViewLocator 自动匹配 ReaderView -->
         <ContentControl Grid.Row="1"
                         Content="{Binding CurrentView}"
                         HorizontalAlignment="Stretch"
-                        VerticalAlignment="Stretch"
-                        Background="#FF1E1E1E">
-            <ContentControl.DataTemplates>
-                <DataTemplate DataType="vm:ReaderViewModel">
-                    <Grid RowDefinitions="*,Auto">
-                        <!-- 阅读器视图占位 -->
-                        <Border Grid.Row="0"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Padding="20">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="{Binding StatusText}"
-                                           Foreground="White"
-                                           FontSize="16"
-                                           HorizontalAlignment="Center" />
-                                <StackPanel Orientation="Horizontal"
-                                            HorizontalAlignment="Center"
-                                            Spacing="8">
-                                    <Button Content="◀ 上一页"
-                                            Command="{Binding GoToPrevPageCommand}"
-                                            IsEnabled="{Binding IsLoading, Converter={x:Static BoolConverters.Not}}" />
-                                    <Button Content="下一页 ▶"
-                                            Command="{Binding GoToNextPageCommand}"
-                                            IsEnabled="{Binding IsLoading, Converter={x:Static BoolConverters.Not}}" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal"
-                                            HorizontalAlignment="Center"
-                                            Spacing="4">
-                                    <Button Content="−" Command="{Binding ZoomOutCommand}" Width="32" />
-                                    <Button Content="+" Command="{Binding ZoomInCommand}" Width="32" />
-                                    <Button Content="1:1" Command="{Binding ZoomResetCommand}" Width="40" />
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- 底部图片信息 -->
-                        <Border Grid.Row="1" Padding="8,4"
-                                Background="#CC2D2D2D">
-                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                <TextBlock Foreground="#AAAAAA" FontSize="12">
-                                    <Run Text="缩放: " /><Run Text="{Binding ZoomLevel, StringFormat={}{0:P0}}" />
-                                </TextBlock>
-                                <TextBlock Foreground="#AAAAAA" FontSize="12"
-                                           Text="{Binding StatusText}" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </DataTemplate>
-            </ContentControl.DataTemplates>
-        </ContentControl>
+                        VerticalAlignment="Stretch" />
 
         <!-- 底部状态栏 -->
         <Border Grid.Row="2" Padding="8,4"
                 Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
-            <TextBlock Text="{Binding Reader.StatusText}" FontSize="12" />
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <TextBlock Text="{Binding Reader.StatusText}" FontSize="12" />
+                <TextBlock FontSize="12" Foreground="Gray">
+                    <Run Text="缩放: " /><Run Text="{Binding Reader.ZoomLevel, StringFormat={}{0:P0}}" />
+                </TextBlock>
+            </StackPanel>
         </Border>
     </Grid>
 

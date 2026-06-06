@@ -42,26 +42,30 @@
 
 ## 第 2 周：图片渲染引擎
 
-### Day 1-3：图片加载器
+### Day 1-3：图片加载器 ✅
 
-- [ ] 实现 `IImageLoader` 接口
-- [ ] 实现 `AvaloniaImageLoader`（基于 `Bitmap`）
-- [ ] 支持格式：JPG, PNG, BMP, GIF, WebP
-- [ ] 内存管理：大图解码、缓存策略
-- [ ] 单元测试：加载各种格式图片
+- [x] 实现 `IImageLoader` 接口 → `SkiaImageLoader`（`NbReader.Core/Services/`）
+- [x] 实现 `SkiaImage`（包装 `SKBitmap`，`NbReader.Core/Services/`）
+- [x] 支持格式：JPG, PNG, BMP, GIF, WebP（SkiaSharp 原生支持）
+- [x] 灰度图自动转 BGRA8888
+- [x] 实现 `ImageConverter`：SKBitmap → Avalonia Bitmap（`NbReader/Converters/`）
+- [x] 单元测试：10 个用例（SkiaImageLoader 6 + ImageConverter 4）
 
-### Day 4-5：阅读器视图
+### Day 4-5：阅读器视图 ✅
 
-- [ ] 实现 `ReaderView` 用户控件（Avalonia UserControl）
-  - 居中显示图片
-  - 鼠标滚轮缩放
-  - 鼠标拖拽平移
-  - 适应宽度/高度切换
-- [x] 实现 `ReaderViewModel`（部分：翻页/缩放命令、状态属性已完成，待对接 IImageLoader）
-  - 当前图片源属性
-  - 缩放级别属性
-  - 适应模式枚举
-- [ ] 单元测试：缩放逻辑、边界条件
+- [x] 实现 `ReaderView` 用户控件（Avalonia UserControl）
+  - 居中显示图片（ScrollViewer + Image）
+  - Ctrl+鼠标滚轮缩放（以视口中心为锚点）
+  - 普通滚轮垂直滚动
+  - 鼠标中键拖拽平移
+  - 键盘翻页（← → PgUp PgDn Space）
+  - 键盘缩放（Ctrl+Plus/Minus/0）
+- [x] `ReaderViewModel` 完整对接 IImageLoader
+  - `DisplayBitmap` 属性（Avalonia Bitmap，供 View 绑定）
+  - `IImageLoader` 构造函数注入
+  - `LoadFileSourceAsync` → 解码 → DisplayBitmap
+  - `Close` 命令清理资源
+- [x] 单元测试：6 个用例（ReaderViewModel）
 
 ---
 

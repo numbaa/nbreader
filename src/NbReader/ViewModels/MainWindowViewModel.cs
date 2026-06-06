@@ -1,7 +1,5 @@
-﻿using Avalonia;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace NbReader.ViewModels;
 
@@ -21,10 +19,10 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public ReaderViewModel Reader { get; }
 
-    public MainWindowViewModel()
+    public MainWindowViewModel(ReaderViewModel reader)
     {
-        Reader = ((App)Application.Current!).Services.GetRequiredService<ReaderViewModel>();
-        CurrentView = Reader;
+        Reader = reader;
+        CurrentView = reader;
     }
 
     /// <summary>
@@ -33,7 +31,17 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task OpenFileAsync()
     {
-        // TODO: 实现文件打开对话框 + FileSourceFactory
+        // TODO: 实现文件打开对话框 + FileSourceFactory（第 3 周）
         await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// [验证用] 加载演示图片，验证渲染引擎。
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadDemoAsync()
+    {
+        await Reader.LoadDemoImageAsync();
+        CurrentView = Reader;
     }
 }
