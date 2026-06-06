@@ -6,36 +6,37 @@
 
 ## 第 1 周：项目初始化（Phase 0）
 
-### Day 1-2：项目脚手架
+### Day 1-2：项目脚手架 ✅
 
-- [ ] 使用 Avalonia UI 模板创建解决方案
-  - `NbReader` — 主项目（Avalonia Application）
+- [x] 使用 Avalonia UI 模板创建解决方案
+  - `NbReader` — 主项目（Avalonia MVVM Application）
   - `NbReader.Core` — 核心逻辑库（类库）
   - `NbReader.Tests` — 单元测试项目（xUnit）
-- [ ] 配置 `.csproj` 依赖：
-  - `Avalonia` + `Avalonia.Desktop` + `Avalonia.Fonts.Inter`
-  - `CommunityToolkit.Mvvm`（MVVM 工具包）
-  - `Avalonia.Diagnostics`（开发调试）
-- [ ] 创建基础目录结构（见架构设计文档）
-- [ ] 配置 `.gitignore`、`Directory.Build.props`
-- [ ] 编写并运行第一个"Hello World"测试
+- [x] 配置 `.csproj` 依赖：
+  - `Avalonia` 11.2.5 + `Avalonia.Desktop` 11.2.5 + `Avalonia.Fonts.Inter` 11.2.5
+  - `CommunityToolkit.Mvvm` 8.4.1（MVVM 工具包）
+  - `AvaloniaUI.DiagnosticsSupport` 2.2.1（开发调试）
+  - `Microsoft.Extensions.DependencyInjection` 8.0.1
+  - `Microsoft.Extensions.Logging.Console` 8.0.1
+  - `SharpCompress` 0.39.0、`SkiaSharp` 3.116.1
+- [x] 创建基础目录结构（见架构设计文档）
+- [x] 配置 `.gitignore`、`Directory.Build.props`
+- [x] 目标框架：`.NET 8.0`（LTS）
 
-### Day 3-4：基础架构搭建
+### Day 3-4：基础架构搭建 ✅
 
-- [ ] 实现 MVVM 基础类：
-  - `ViewModelBase` — 基类
-  - `RelayCommand` / `AsyncRelayCommand`
-  - `IView` 接口标记
-- [ ] 实现导航服务 `INavigationService`
-- [ ] 创建 `MainWindow` + `MainViewModel` 空白窗口
-- [ ] 运行验证：空白窗口能正常启动
+- [x] 实现 MVVM 基础类：
+  - `ViewModelBase` — 基类（继承 `ObservableObject`）
+  - `RelayCommand` / `AsyncRelayCommand`（CommunityToolkit.Mvvm 源生成）
+- [x] ~~实现导航服务 `INavigationService`~~ → 改用 `ContentControl` + `DataTemplate` 按类型匹配
+- [x] 创建 `MainWindow` + `MainWindowViewModel` + `ReaderViewModel`
+- [x] 运行验证：窗口能正常启动
 
-### Day 5：测试基础设施
+### Day 5：测试基础设施 ✅
 
-- [ ] 单元测试项目配置完成
-- [ ] 编写 `ViewModelBase` 单元测试
-- [ ] 编写 `MainViewModel` 初始化测试
-- [ ] 确认 `dotnet test` 全部通过
+- [x] 单元测试项目配置完成（xUnit + FluentAssertions）
+- [x] 编写 `ReaderViewModel` 单元测试（6 个用例）
+- [x] 确认 `dotnet test` 全部通过
 
 ---
 
@@ -51,12 +52,12 @@
 
 ### Day 4-5：阅读器视图
 
-- [ ] 实现 `ReaderView` 用户控件
+- [ ] 实现 `ReaderView` 用户控件（Avalonia UserControl）
   - 居中显示图片
   - 鼠标滚轮缩放
   - 鼠标拖拽平移
   - 适应宽度/高度切换
-- [ ] 实现 `ReaderViewModel`
+- [x] 实现 `ReaderViewModel`（部分：翻页/缩放命令、状态属性已完成，待对接 IImageLoader）
   - 当前图片源属性
   - 缩放级别属性
   - 适应模式枚举
@@ -130,12 +131,12 @@
 
 | 议题 | 方案 | 状态 |
 |------|------|------|
-| IOC 容器 | `Microsoft.Extensions.DependencyInjection` | 待确认 |
-| 图片库 | SkiaSharp 或 Avalonia 原生 `Bitmap` | 待确认 |
-| 压缩库 | `SharpCompress`（支持 RAR） | 待确认 |
-| 配置存储 | JSON 文件（`appsettings.json`） | 待确认 |
-| 日志 | `Microsoft.Extensions.Logging` + Serilog | 待确认 |
-| 打包工具 | `dotnet publish` + Avalonia 自带工具 | 待确认 |
+| IOC 容器 | `Microsoft.Extensions.DependencyInjection` 8.0.1 | ✅ 已集成 |
+| 图片库 | SkiaSharp 3.116.1 | ✅ 已引用 |
+| 压缩库 | `SharpCompress` 0.39.0（支持 RAR） | ✅ 已引用 |
+| 配置存储 | JSON 文件 + `Microsoft.Extensions.Logging` | ✅ 已引用 |
+| 日志 | `Microsoft.Extensions.Logging` 8.0.1 | ✅ 已引用 |
+| 导航 | `ContentControl` + `DataTemplate`（无额外导航库）| ✅ 已确定 |
 
 ---
 

@@ -20,14 +20,14 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="打开" Command="{Binding OpenFileCommand}" />
                 <Separator Width="1" Height="20" />
-                <TextBlock Text="{Binding Reader.ComicName}" 
-                           VerticalAlignment="Center" 
+                <TextBlock Text="{Binding Reader.ComicName}"
+                           VerticalAlignment="Center"
                            FontWeight="Bold" />
             </StackPanel>
         </Border>
 
         <!-- 中央阅读区域 -->
-        <ContentControl Grid.Row="1" 
+        <ContentControl Grid.Row="1"
                         Content="{Binding CurrentView}"
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Stretch"
@@ -36,27 +36,27 @@
                 <DataTemplate DataType="vm:ReaderViewModel">
                     <Grid RowDefinitions="*,Auto">
                         <!-- 阅读器视图占位 -->
-                        <Border Grid.Row="0" 
-                                HorizontalAlignment="Center" 
+                        <Border Grid.Row="0"
+                                HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Padding="20">
                             <StackPanel Spacing="12">
-                                <TextBlock Text="{Binding StatusText}" 
-                                           Foreground="White" 
+                                <TextBlock Text="{Binding StatusText}"
+                                           Foreground="White"
                                            FontSize="16"
                                            HorizontalAlignment="Center" />
-                                <StackPanel Orientation="Horizontal" 
-                                            HorizontalAlignment="Center" 
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Center"
                                             Spacing="8">
-                                    <Button Content="◀ 上一页" 
+                                    <Button Content="◀ 上一页"
                                             Command="{Binding GoToPrevPageCommand}"
                                             IsEnabled="{Binding IsLoading, Converter={x:Static BoolConverters.Not}}" />
-                                    <Button Content="下一页 ▶" 
+                                    <Button Content="下一页 ▶"
                                             Command="{Binding GoToNextPageCommand}"
                                             IsEnabled="{Binding IsLoading, Converter={x:Static BoolConverters.Not}}" />
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" 
-                                            HorizontalAlignment="Center" 
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Center"
                                             Spacing="4">
                                     <Button Content="−" Command="{Binding ZoomOutCommand}" Width="32" />
                                     <Button Content="+" Command="{Binding ZoomInCommand}" Width="32" />
@@ -66,7 +66,7 @@
                         </Border>
 
                         <!-- 底部图片信息 -->
-                        <Border Grid.Row="1" Padding="8,4" 
+                        <Border Grid.Row="1" Padding="8,4"
                                 Background="#CC2D2D2D">
                             <StackPanel Orientation="Horizontal" Spacing="16">
                                 <TextBlock Foreground="#AAAAAA" FontSize="12">
@@ -82,7 +82,7 @@
         </ContentControl>
 
         <!-- 底部状态栏 -->
-        <Border Grid.Row="2" Padding="8,4" 
+        <Border Grid.Row="2" Padding="8,4"
                 Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
             <TextBlock Text="{Binding Reader.StatusText}" FontSize="12" />
         </Border>

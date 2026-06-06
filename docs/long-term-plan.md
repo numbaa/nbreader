@@ -22,13 +22,13 @@
 
 **目标：** 搭建可运行的基础框架，验证技术选型。
 
-| 任务 | 说明 |
-|------|------|
-| 项目结构搭建 | 使用 `dotnet new` 创建 Avalonia MVVM 项目 |
-| 依赖引入 | Avalonia UI、CommunityToolkit.Mvvm、测试框架（xUnit） |
-| CI/CD 骨架 | GitHub Actions 自动构建与测试 |
-| 基础窗口 | 空白的 Avalonia Window，验证可运行 |
-| 测试基础设施 | 单元测试项目搭建，首个示例测试 |
+| 任务 | 说明 | 状态 |
+|------|------|------|
+| 项目结构搭建 | 使用 `dotnet new` 创建 Avalonia MVVM 项目 | ✅ |
+| 依赖引入 | Avalonia UI 11.2.5、CommunityToolkit.Mvvm 8.4.1、xUnit | ✅ |
+| CI/CD 骨架 | GitHub Actions 自动构建与测试 | ⏳ 待实施 |
+| 基础窗口 | Avalonia Window，含工具栏 + 阅读区 + 状态栏 | ✅ |
+| 测试基础设施 | 单元测试项目搭建，6 个用例通过 | ✅ |
 
 ---
 

@@ -5,10 +5,9 @@
 ```
 nbreader/
 ├── NbReader.sln
-├── Directory.Build.props          # 统一版本号、分析器配置
+├── Directory.Build.props          # 统一版本号 (v0.1.0)
 ├── .gitignore
 ├── AGENTS.md
-├── README.md
 ├── docs/                          # 设计文档
 │   ├── long-term-plan.md
 │   ├── short-term-plan.md
@@ -18,51 +17,37 @@ nbreader/
 │   │   ├── NbReader.csproj
 │   │   ├── App.axaml / App.axaml.cs
 │   │   ├── Program.cs
+│   │   ├── ViewLocator.cs
 │   │   ├── Views/                  # 视图（AXAML + code-behind）
-│   │   │   ├── MainWindow.axaml
-│   │   │   ├── MainView.axaml
-│   │   │   ├── ReaderView.axaml
-│   │   │   └── Controls/           # 可复用控件
+│   │   │   └── MainWindow.axaml / .axaml.cs
 │   │   ├── ViewModels/             # 视图模型
-│   │   │   ├── MainViewModel.cs
-│   │   │   ├── ReaderViewModel.cs
-│   │   │   └── ViewModelBase.cs
-│   │   ├── Converters/             # 值转换器
-│   │   ├── Services/               # UI 层服务
-│   │   │   └── DialogService.cs
+│   │   │   ├── ViewModelBase.cs
+│   │   │   ├── MainWindowViewModel.cs
+│   │   │   └── ReaderViewModel.cs
+│   │   ├── Converters/             # 值转换器（待实现）
+│   │   ├── Services/               # UI 层服务（待实现）
+│   │   ├── Models/                 # UI 层模型（待实现）
 │   │   └── Assets/                 # 静态资源
-│   │       └── appsettings.json
+│   │       └── avalonia-logo.ico
 │   │
 │   ├── NbReader.Core/              # 核心逻辑库（无 UI 依赖）
 │   │   ├── NbReader.Core.csproj
-│   │   ├── Models/                 # 领域模型
-│   │   │   ├── ComicInfo.cs        # 漫画元数据
-│   │   │   ├── PageInfo.cs         # 单页信息
-│   │   │   └── ReadingProgress.cs  # 阅读进度
-│   │   ├── Abstractions/           # 接口定义
-│   │   │   ├── IFileSource.cs      # 文件源接口
-│   │   │   ├── IImageLoader.cs     # 图片加载接口
-│   │   │   └── IArchiveService.cs  # 压缩包服务接口
-│   │   ├── Services/               # 核心服务实现
-│   │   │   ├── FileSourceFactory.cs
-│   │   │   ├── DirectoryFileSource.cs
-│   │   │   ├── CbzFileSource.cs
-│   │   │   └── ImageLoader.cs
-│   │   └── Extensions/             # 扩展方法
-│   │       └── EnumerableExtensions.cs
+│   │   ├── Abstractions/           # 接口定义 ✅
+│   │   │   ├── IFileSource.cs
+│   │   │   ├── IImageLoader.cs
+│   │   │   └── IArchiveService.cs
+│   │   ├── Models/                 # 领域模型 ✅
+│   │   │   ├── ComicInfo.cs
+│   │   │   ├── PageInfo.cs
+│   │   │   └── ReadingProgress.cs
+│   │   ├── Services/               # 核心服务实现（待实现）
+│   │   └── Extensions/             # 扩展方法（待实现）
 │   │
 │   └── NbReader.Tests/             # 测试项目
 │       ├── NbReader.Tests.csproj
-│       ├── Core/                   # 核心逻辑测试
-│       │   ├── Services/
-│       │   │   ├── DirectoryFileSourceTests.cs
-│       │   │   ├── CbzFileSourceTests.cs
-│       │   │   └── FileSourceFactoryTests.cs
-│       │   └── Models/
+│       ├── Core/                   # 核心逻辑测试（待添加）
 │       └── UI/                     # UI 逻辑测试
-│           └── ViewModels/
-│               ├── MainViewModelTests.cs
-│               └── ReaderViewModelTests.cs
+│           └── ReaderViewModelTests.cs  ✅ 6 个用例
 ```
 
 ---
@@ -178,28 +163,29 @@ public record ArchiveEntry(string Name, long Size, bool IsDirectory);
 
 ```mermaid
 graph TD
-    MW[MainWindow] --> MV[MainView]
-    MV --> LV[LibraryView<br/>书架视图]
-    MV --> RV[ReaderView<br/>阅读器视图]
-    MV --> SV[SettingsView<br/>设置视图]
+    MW[MainWindow] --> CC[ContentControl]
+    CC --> RV[ReaderView<br/>（通过 DataTemplate 匹配）]
     
-    MVM[MainViewModel] --> RVM[ReaderViewModel]
-    MVM --> LVM[LibraryViewModel]
-    MVM --> SVM[SettingsViewModel]
-    
-    NS[NavigationService] --> MVM
+    MWVM[MainWindowViewModel] --> RVM[ReaderViewModel]
+    MWVM --> |后续扩展| LVM[LibraryViewModel]
+    MWVM --> |后续扩展| SVM[SettingsViewModel]
 ```
 
-**导航方式：** 使用 `ContentControl` + 数据模板切换，由 `MainViewModel` 管理当前活跃视图。
+**导航方式：** 使用 `ContentControl` + `DataTemplate` 按 VM 类型自动匹配视图，由 `MainWindowViewModel.CurrentView` 属性控制切换。
 
 ```csharp
-public class MainViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase
 {
-    public ViewModelBase CurrentView { get; set; }
+    [ObservableProperty]
+    private ViewModelBase _currentView;
 
-    public ICommand NavigateToReader { get; }
-    public ICommand NavigateToLibrary { get; }
-    public ICommand NavigateToSettings { get; }
+    public ReaderViewModel Reader { get; }
+
+    public MainWindowViewModel()
+    {
+        Reader = ((App)Application.Current!).Services.GetRequiredService<ReaderViewModel>();
+        CurrentView = Reader;
+    }
 }
 ```
 
@@ -211,39 +197,37 @@ public class MainViewModel : ViewModelBase
 sequenceDiagram
     participant U as User
     participant MW as MainWindow
-    participant MVM as MainViewModel
+    participant MWVM as MainWindowViewModel
     participant RVM as ReaderViewModel
-    participant FS as FileSourceFactory
-    participant IL as ImageLoader
-    participant RV as ReaderView
+    participant FS as IFileSource
+    participant IL as IImageLoader
 
     U->>MW: 打开 CBZ 文件
-    MW->>MVM: OpenFileCommand
-    MVM->>FS: Create(filePath)
-    FS-->>MVM: IFileSource
-    MVM->>RVM: SetFileSource(source)
-    RVM->>FS: GetPageStream(0)
+    MW->>MWVM: OpenFileCommand
+    MWVM->>FS: Create(filePath)
+    FS-->>MWVM: IFileSource
+    MWVM->>RVM: LoadFileSourceAsync(source)
+    RVM->>FS: GetPageStreamAsync(0)
     FS-->>RVM: Stream
-    RVM->>IL: LoadAsync(stream)
-    IL-->>RVM: IImage
-    RVM-->>RV: PropertyChanged → CurrentImage
-    RV->>RV: Render image
+    Note over RVM: TODO: IImageLoader 解码
+    RVM-->>MW: CurrentImage 属性变更通知
+    MW->>MW: 渲染图片
 ```
 
 ---
 
 ## 6. 关键技术选型
 
-| 组件 | 选型 | 理由 |
-|------|------|------|
-| UI 框架 | Avalonia UI 11.x | 跨平台，XAML 风格，成熟 |
-| MVVM | CommunityToolkit.Mvvm | 官方推荐，源生成器减少样板代码 |
-| DI 容器 | Microsoft.Extensions.DependencyInjection | .NET 标准，轻量 |
-| 图片渲染 | SkiaSharp | 高性能 2D 渲染，WebP 支持好 |
-| 压缩处理 | SharpCompress | 支持 ZIP / RAR / 7Z |
-| 测试 | xUnit + FluentAssertions | 社区标准 |
-| 日志 | Microsoft.Extensions.Logging | .NET 标准 |
-| 配置 | JSON (appsettings.json) | 简单通用 |
+| 组件 | 选型 | 版本 | 理由 |
+|------|------|------|------|
+| .NET SDK | .NET 8 | 8.0.420 | LTS 长期支持 |
+| UI 框架 | Avalonia UI | 11.2.5 | 跨平台，XAML 风格，成熟 |
+| MVVM | CommunityToolkit.Mvvm | 8.4.1 | 官方推荐，源生成器减少样板代码 |
+| DI 容器 | Microsoft.Extensions.DependencyInjection | 8.0.1 | .NET 标准，轻量 |
+| 图片渲染 | SkiaSharp | 3.116.1 | 高性能 2D 渲染，WebP 支持好 |
+| 压缩处理 | SharpCompress | 0.39.0 | 支持 ZIP / RAR / 7Z |
+| 测试 | xUnit + FluentAssertions | 2.9.2 / 7.0.0 | 社区标准 |
+| 日志 | Microsoft.Extensions.Logging | 8.0.1 | .NET 标准 |
 
 ---
 
