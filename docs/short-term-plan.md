@@ -31,23 +31,26 @@
 
 ---
 
-## 第 2 周：图片适应模式
+## 第 2 周：图片适应模式 ✅
 
 ### Day 1-3：FitMode 实现
 
-- [ ] 在 `ReaderViewModel` 中添加 `FitMode` 属性
-  - `Uniform`（当前，等比缩放以适应视口）
-  - `FillWidth`（适应宽度，高度可能超出）
-  - `FillHeight`（适应高度，宽度可能超出）
-  - `Original`（原始尺寸，1:1 像素）
-- [ ] `ReaderView` 响应 `FitMode` 变化，动态调整 `Stretch` 和 `Image` 尺寸
-- [ ] 适配模式切换按钮/快捷键（如 `F` 键循环切换）
+- [x] 在 `ReaderViewModel` 中添加 `FitMode` 枚举与属性
+  - `Uniform`（等比缩放以适应视口）
+  - `FillWidth`（适应宽度）
+  - `FillHeight`（适应高度）
+  - `Original`（原始尺寸 1:1）
+  - `FitModeText` 计算属性（中文标签）
+- [x] `ReaderView.ApplyFitMode()` → 根据视口计算目标缩放
+- [x] 新图片加载时自动应用当前适应模式
+- [x] `CycleFitModeCommand` → F 键循环切换
 
 ### Day 4-5：适应模式完善
 
-- [ ] 切换模式时保持缩放锚点（视觉中心不跳动）
-- [ ] 状态栏显示当前适应模式
-- [ ] 单元测试：FitMode 切换逻辑、边界条件
+- [x] 切换模式时缩放平滑过渡（视口中心锚点不变）
+- [x] 状态栏显示当前适应模式（`FitModeText`）
+- [x] 单元测试：FitMode 默认值、CycleFitMode 循环顺序、FitModeText 标签
+- [x] 测试通过：57 个（新增 4 个 FitMode 测试）
 
 ---
 

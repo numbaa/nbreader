@@ -65,6 +65,8 @@
                              Width="80" Height="10" />
                 <TextBlock Text="{Binding Reader.StatusText}" FontSize="12"
                            VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Reader.FitModeText}" FontSize="12"
+                           Foreground="Gray" VerticalAlignment="Center" />
                 <TextBlock FontSize="12" Foreground="Gray"
                            VerticalAlignment="Center">
                     <Run Text="缩放: " /><Run Text="{Binding Reader.ZoomLevel, StringFormat={}{0:P0}}" />

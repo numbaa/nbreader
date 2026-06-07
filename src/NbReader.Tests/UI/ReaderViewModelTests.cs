@@ -98,6 +98,75 @@ public class ReaderViewModelTests
         // Assert
         vm.ZoomLevel.Should().Be(1.0);
     }
+
+    // ─── FitMode 测试 ────────────────────────────────────────────────
+
+    [Fact]
+    public void FitMode_Default_ShouldBeUniform()
+    {
+        // Arrange & Act
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        // Assert
+        vm.FitMode.Should().Be(FitMode.Uniform);
+    }
+
+    [Fact]
+    public void FitModeText_ForEachMode_ShouldReturnChineseLabel()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        // Act & Assert
+        vm.FitMode = FitMode.Uniform;
+        vm.FitModeText.Should().Be("适应页面");
+
+        vm.FitMode = FitMode.FillWidth;
+        vm.FitModeText.Should().Be("适应宽度");
+
+        vm.FitMode = FitMode.FillHeight;
+        vm.FitModeText.Should().Be("适应高度");
+
+        vm.FitMode = FitMode.Original;
+        vm.FitModeText.Should().Be("原始大小");
+    }
+
+    [Fact]
+    public void CycleFitMode_ShouldCycleInOrder()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        // Act & Assert: Uniform → FillWidth
+        vm.CycleFitModeCommand.Execute(null);
+        vm.FitMode.Should().Be(FitMode.FillWidth);
+
+        // FillWidth → FillHeight
+        vm.CycleFitModeCommand.Execute(null);
+        vm.FitMode.Should().Be(FitMode.FillHeight);
+
+        // FillHeight → Original
+        vm.CycleFitModeCommand.Execute(null);
+        vm.FitMode.Should().Be(FitMode.Original);
+
+        // Original → Uniform (循环)
+        vm.CycleFitModeCommand.Execute(null);
+        vm.FitMode.Should().Be(FitMode.Uniform);
+    }
+
+    [Fact]
+    public void CycleFitMode_AfterDirectSet_ShouldContinueFromCurrent()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader());
+        vm.FitMode = FitMode.FillHeight;
+
+        // Act
+        vm.CycleFitModeCommand.Execute(null);
+
+        // Assert: FillHeight → Original
+        vm.FitMode.Should().Be(FitMode.Original);
+    }
 }
 
 /// <summary>

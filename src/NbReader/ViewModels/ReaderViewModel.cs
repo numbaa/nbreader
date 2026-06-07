@@ -6,6 +6,21 @@ using SkiaSharp;
 namespace NbReader.ViewModels;
 
 /// <summary>
+/// 图片适应模式。
+/// </summary>
+public enum FitMode
+{
+    /// <summary>等比缩放以适应视口（默认）。</summary>
+    Uniform,
+    /// <summary>宽度撑满视口。</summary>
+    FillWidth,
+    /// <summary>高度撑满视口。</summary>
+    FillHeight,
+    /// <summary>1:1 原始像素。</summary>
+    Original
+}
+
+/// <summary>
 /// 阅读器视图模型：管理当前显示的图片、缩放、翻页等状态。
 /// </summary>
 public partial class ReaderViewModel : ViewModelBase
@@ -39,6 +54,25 @@ public partial class ReaderViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     private string _comicName = string.Empty;
+
+    /// <summary>
+    /// 当前图片适应模式。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FitModeText))]
+    private FitMode _fitMode = FitMode.Uniform;
+
+    /// <summary>
+    /// 适应模式的中文描述（状态栏显示）。
+    /// </summary>
+    public string FitModeText => FitMode switch
+    {
+        FitMode.Uniform => "适应页面",
+        FitMode.FillWidth => "适应宽度",
+        FitMode.FillHeight => "适应高度",
+        FitMode.Original => "原始大小",
+        _ => ""
+    };
 
     public ReaderViewModel(IImageLoader imageLoader)
     {
@@ -257,8 +291,23 @@ public partial class ReaderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 关闭当前漫画。
+    /// 循环切换适应模式: Uniform → FillWidth → FillHeight → Original → Uniform。
     /// </summary>
+    [RelayCommand]
+    private void CycleFitMode()
+    {
+        FitMode = FitMode switch
+        {
+            FitMode.Uniform => FitMode.FillWidth,
+            FitMode.FillWidth => FitMode.FillHeight,
+            FitMode.FillHeight => FitMode.Original,
+            FitMode.Original => FitMode.Uniform,
+            _ => FitMode.Uniform
+        };
+    }
+
+    /// <summary>
+    /// 关闭当前漫画。</summary>
     [RelayCommand]
     private void Close()
     {

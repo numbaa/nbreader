@@ -51,6 +51,8 @@ public partial class ReaderView : UserControl
                     SetImageSource(vm.DisplayBitmap);
                 else if (args.PropertyName == nameof(ReaderViewModel.ZoomLevel))
                     ApplyZoom(vm.ZoomLevel);
+                else if (args.PropertyName == nameof(ReaderViewModel.FitMode))
+                    ApplyFitMode(vm.FitMode);
             };
 
             SetImageSource(vm.DisplayBitmap);
@@ -66,8 +68,36 @@ public partial class ReaderView : UserControl
         {
             _originalWidth = bitmap.Size.Width;
             _originalHeight = bitmap.Size.Height;
-            ApplyZoom(1.0);
+
+            // 新图片加载时，按当前适应模式计算初始缩放
+            if (DataContext is ReaderViewModel vm)
+                ApplyFitMode(vm.FitMode);
+            else
+                ApplyZoom(1.0);
         }
+    }
+
+    /// <summary>
+    /// 根据适应模式和视口大小计算目标缩放比例，并应用。
+    /// </summary>
+    public void ApplyFitMode(FitMode mode)
+    {
+        if (_imageControl is null || _scrollViewer is null) return;
+        if (_originalWidth <= 0 || _originalHeight <= 0) return;
+
+        var vw = _scrollViewer.Viewport.Width;
+        var vh = _scrollViewer.Viewport.Height;
+
+        double targetZoom = mode switch
+        {
+            FitMode.Uniform => Math.Min(vw / _originalWidth, vh / _originalHeight),
+            FitMode.FillWidth => vw / _originalWidth,
+            FitMode.FillHeight => vh / _originalHeight,
+            FitMode.Original => 1.0,
+            _ => 1.0
+        };
+
+        ApplyZoom(targetZoom);
     }
 
     public void ApplyZoom(double zoom)

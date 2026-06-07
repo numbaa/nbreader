@@ -153,6 +153,11 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
 
+            case Key.F:
+                reader.CycleFitModeCommand.Execute(null);
+                e.Handled = true;
+                break;
+
             case Key.F11:
                 WindowState = WindowState == WindowState.FullScreen
                     ? WindowState.Normal

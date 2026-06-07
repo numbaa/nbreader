@@ -65,7 +65,7 @@ nbreader/
 │       │   ├── CbrFileSourceTests.cs         ✅ 6 个用例
 │       │   └── FileSourceFactoryTests.cs     ✅ 8 个用例
 │       └── UI/                     # UI 逻辑测试
-│           └── ReaderViewModelTests.cs       ✅ 6 个用例
+│           └── ReaderViewModelTests.cs       ✅ 10 个用例
 ```
 
 ---
