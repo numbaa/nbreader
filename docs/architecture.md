@@ -10,8 +10,10 @@ nbreader/
 ├── AGENTS.md
 ├── docs/                          # 设计文档
 │   ├── long-term-plan.md
-│   ├── short-term-plan.md
-│   └── architecture.md
+│   ├── short-term-plan.md         # 当前短期计划（Phase 1 收尾 → Phase 2）
+│   ├── short-term-plan-archive-phase0-1.md  # 已归档（Phase 0 → Phase 1）
+│   ├── architecture.md
+│   └── test-checklist.md
 ├── src/
 │   ├── NbReader/                  # Avalonia 主项目（UI 层）
 │   │   ├── NbReader.csproj

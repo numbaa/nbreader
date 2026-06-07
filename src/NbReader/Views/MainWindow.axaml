@@ -23,7 +23,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="📂 打开文件" Click="OnOpenFileClick" />
                 <Button Content="📁 打开文件夹" Click="OnOpenFolderClick" />
-                <Button Content="🎨 演示" Command="{Binding LoadDemoCommand}"
+                <Button x:Name="DemoButton" Content="🎨 演示" Command="{Binding LoadDemoCommand}"
                         Background="#FF3A6B35" Foreground="White" />
                 <Separator Width="1" Height="20" />
                 <TextBlock Text="{Binding Reader.ComicName}"

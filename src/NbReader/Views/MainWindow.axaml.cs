@@ -12,6 +12,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+#if !DEBUG
+        // 演示按钮仅在 Debug 模式下可见
+        DemoButton.IsVisible = false;
+#endif
+
         // 全局键盘 + 滚轮处理 — 隧道策略在子控件前优先捕获
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerWheelChangedEvent, OnWindowPointerWheel, RoutingStrategies.Tunnel, handledEventsToo: true);
