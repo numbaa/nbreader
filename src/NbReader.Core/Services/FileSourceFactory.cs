@@ -31,6 +31,7 @@ public static class FileSourceFactory
             return ext switch
             {
                 ".cbz" or ".zip" => new CbzFileSource(path),
+                ".cbr" => new CbrFileSource(path),
                 _ => throw new NotSupportedException($"不支持的文件格式: {ext}")
             };
         }

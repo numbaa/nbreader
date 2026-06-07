@@ -37,7 +37,7 @@ public partial class MainWindow : Window
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("漫画文件 (*.cbz, *.zip)") { Patterns = ["*.cbz", "*.zip"] },
+                new FilePickerFileType("漫画文件 (*.cbz, *.zip, *.cbr)") { Patterns = ["*.cbz", "*.zip", "*.cbr"] },
                 new FilePickerFileType("所有文件") { Patterns = ["*.*"] }
             ]
         });

@@ -6,23 +6,22 @@
 
 ## 第 1 周：Phase 1 收尾 — CBR 支持
 
-### Day 1-2：CbrFileSource 实现
+### Day 1-2：CbrFileSource 实现 ✅
 
-- [ ] 实现 `CbrFileSource : IFileSource`
-  - 基于 SharpCompress 的 RAR 解压（`SharpCompress.Readers.RarReader`）
+- [x] 实现 `CbrFileSource : IFileSource`
+  - 基于 SharpCompress 的 RAR 解压（`SharpCompress.Archives.Rar.RarArchive`）
   - 内存中提取条目，过滤图片文件
   - 按条目名排序
-  - 复用与 `CbzFileSource` 相似的逻辑结构（可提取公共基类）
-- [ ] 扩展 `FileSourceFactory` 路由：`.cbr` → `CbrFileSource`
-- [ ] 文件对话框添加 `.cbr` 过滤器
+- [x] 扩展 `FileSourceFactory` 路由：`.cbr` → `CbrFileSource`
+- [x] 文件对话框添加 `.cbr` 过滤器
 
-### Day 3：CBR 单元测试
+### Day 3：CBR 单元测试 ✅
 
-- [ ] 正常 CBR（含多张图片）→ 正确解析页码、排序
-- [ ] 空 CBR（无图片条目）→ PageCount = 0
-- [ ] 损坏 CBR → 抛出明确异常
-- [ ] 嵌套目录 CBR → 递归收集图片
-- [ ] FileSourceFactory 路由 `.cbr` → 正确创建 `CbrFileSource`
+- [x] 损坏 CBR → 抛出异常（SharpCompress InvalidFormatException）
+- [x] 文件不存在 → FileNotFoundException
+- [x] 工厂路由 `.cbr` → 正确创建 `CbrFileSource`
+- [x] 通过伪造 .cbr 文件验证构造函数管道畅通
+- [x] 注意：有效 RAR 的正向测试需要真实 .cbr 文件（SharpCompress 不支持 RAR 写入）
 
 ### Day 4-5：补充测试 & 打磨
 

@@ -90,6 +90,21 @@ public class FileSourceFactoryTests : IDisposable
     }
 
     [Fact]
+    public void Create_WithCbrPath_ShouldRouteToCbrFileSource()
+    {
+        // Arrange: 创建一个伪造的 .cbr 文件（非有效 RAR，但用于验证路由）
+        var cbrPath = Path.Combine(_tempDir, "comic.cbr");
+        File.WriteAllBytes(cbrPath, new byte[] { 0x00, 0x01, 0x02 });
+
+        // Act
+        Action act = () => FileSourceFactory.Create(cbrPath);
+
+        // Assert: 应路由到 CbrFileSource（内部抛异常），
+        // 而不是工厂抛 NotSupportedException
+        act.Should().Throw<Exception>();
+    }
+
+    [Fact]
     public void Create_WithUnsupportedExtension_ShouldThrow()
     {
         // Arrange

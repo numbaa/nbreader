@@ -49,6 +49,7 @@ nbreader/
 │   │   │   ├── SkiaImageLoader.cs  ✅ IImageLoader 实现
 │   │   │   ├── DirectoryFileSource.cs  ✅ 图片文件夹文件源
 │   │   │   ├── CbzFileSource.cs        ✅ CBZ 压缩包文件源
+│   │   │   ├── CbrFileSource.cs        ✅ CBR 压缩包文件源
 │   │   │   └── FileSourceFactory.cs    ✅ 文件源工厂
 │   │   └── Extensions/             # 扩展方法（待实现）
 │   │
@@ -59,7 +60,8 @@ nbreader/
 │       │   ├── ImageConverterTests.cs        ✅ 4 个用例
 │       │   ├── DirectoryFileSourceTests.cs   ✅ 12 个用例
 │       │   ├── CbzFileSourceTests.cs         ✅ 12 个用例
-│       │   └── FileSourceFactoryTests.cs     ✅ 7 个用例
+│       │   ├── CbrFileSourceTests.cs         ✅ 6 个用例
+│       │   └── FileSourceFactoryTests.cs     ✅ 8 个用例
 │       └── UI/                     # UI 逻辑测试
 │           └── ReaderViewModelTests.cs       ✅ 6 个用例
 ```
