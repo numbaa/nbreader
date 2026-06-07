@@ -143,6 +143,17 @@ public partial class ReaderViewModel : ViewModelBase
     };
 
     /// <summary>
+    /// 滚动模式：全部页面的位图列表（View 读取，后台持续追加）。
+    /// </summary>
+    internal List<Avalonia.Media.Imaging.Bitmap?>? ScrollBitmaps { get; private set; }
+
+    /// <summary>
+    /// 滚动模式位图列表版本号，每次有新批次加载完成时递增（View 监听）。
+    /// </summary>
+    [ObservableProperty]
+    private int _scrollPagesVersion;
+
+    /// <summary>
     /// 视图绑定的便捷属性。
     /// </summary>
     public bool IsSinglePage => ReadingMode == ReadingMode.SinglePage;
@@ -351,7 +362,7 @@ public partial class ReaderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 滚动模式：加载所有页面。
+    /// 滚动模式：加载首屏后，后台分批续载剩余页面。
     /// </summary>
     private async Task LoadScrollPagesAsync()
     {
@@ -362,15 +373,59 @@ public partial class ReaderViewModel : ViewModelBase
 
         try
         {
-            // 先加载第一页作为 DisplayBitmap（兼容状态栏），其余在 View 中按需构建
-            DisplayBitmap = await DecodePageAsync(0);
-            StatusText = $"1 / {TotalPages}  滚动模式";
+            const int firstBatch = 15;
+            var bitmaps = new List<Avalonia.Media.Imaging.Bitmap?>(TotalPages);
+
+            // 首屏：快速加载前 N 页
+            int initial = Math.Min(firstBatch, TotalPages);
+            for (int i = 0; i < initial; i++)
+                bitmaps.Add(await DecodePageAsync(i));
+
+            ScrollBitmaps = bitmaps;
+            DisplayBitmap = bitmaps[0];
+            ScrollPagesVersion++;
+            StatusText = initial < TotalPages
+                ? $"{initial} / {TotalPages}  滚动模式（后台加载中...）"
+                : $"1 / {TotalPages}  滚动模式";
+
+            // 后台分批续载剩余页面
+            if (initial < TotalPages)
+                _ = LoadRemainingScrollPagesAsync(bitmaps, initial);
         }
         catch (Exception ex)
         {
             StatusText = $"加载失败: {ex.Message}";
         }
         finally { IsLoading = false; }
+    }
+
+    /// <summary>
+    /// 后台分批加载滚动模式剩余页面，每 10 页通知 View 追加。
+    /// </summary>
+    private async Task LoadRemainingScrollPagesAsync(List<Avalonia.Media.Imaging.Bitmap?> bitmaps, int startIndex)
+    {
+        if (_fileSource is null) return;
+
+        for (int i = startIndex; i < TotalPages; i++)
+        {
+            if (ReadingMode != ReadingMode.Scroll) return; // 已切换模式则取消
+
+            try
+            {
+                bitmaps.Add(await DecodePageAsync(i));
+            }
+            catch
+            {
+                bitmaps.Add(null); // 跳过损坏页，继续加载
+            }
+
+            // 每 10 页通知 View 更新
+            if ((i - startIndex + 1) % 10 == 0 || i == TotalPages - 1)
+            {
+                ScrollPagesVersion++;
+                StatusText = $"{bitmaps.Count(n => n is not null)} / {TotalPages}  滚动模式";
+            }
+        }
     }
 
     /// <summary>
@@ -397,14 +452,21 @@ public partial class ReaderViewModel : ViewModelBase
         DisplayBitmap = null;
         DisplayBitmapRight?.Dispose();
         DisplayBitmapRight = null;
+
+        // 不 dispose ScrollBitmaps — View 层在 BuildScrollImages 时负责释放旧位图，
+        // 避免 Image 控件引用已释放内存导致原生崩溃。
+        ScrollBitmaps = null;
+        ScrollPagesVersion = 0;
     }
 
     /// <summary>
-    /// 上一页。
+    /// 上一页。滚动模式下不适用（由滚动条控制）。
     /// </summary>
     [RelayCommand]
     private async Task GoToPrevPageAsync()
     {
+        if (ReadingMode == ReadingMode.Scroll) return;
+
         int step = ReadingMode == ReadingMode.DualPage ? 2 : 1;
         if (CurrentPageIndex >= step)
         {
@@ -414,11 +476,13 @@ public partial class ReaderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 下一页。
+    /// 下一页。滚动模式下不适用（由滚动条控制）。
     /// </summary>
     [RelayCommand]
     private async Task GoToNextPageAsync()
     {
+        if (ReadingMode == ReadingMode.Scroll) return;
+
         int step = ReadingMode == ReadingMode.DualPage ? 2 : 1;
         if (CurrentPageIndex + step < TotalPages)
         {
@@ -528,6 +592,7 @@ public partial class ReaderViewModel : ViewModelBase
         CurrentPageIndex = 0;
         ComicName = string.Empty;
         ReadingMode = ReadingMode.SinglePage;
+        ScrollPagesVersion = 0;
         StatusText = "就绪";
     }
 }

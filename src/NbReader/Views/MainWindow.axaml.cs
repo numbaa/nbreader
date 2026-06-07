@@ -125,9 +125,15 @@ public partial class MainWindow : Window
         {
             case Key.Left:
                 if (reader.ReadingDirection == ViewModels.ReadingDirection.RightToLeft)
-                    goto case Key.Right;
-                if (reader.GoToPrevPageCommand.CanExecute(null))
-                    reader.GoToPrevPageCommand.Execute(null);
+                {
+                    if (reader.GoToNextPageCommand.CanExecute(null))
+                        reader.GoToNextPageCommand.Execute(null);
+                }
+                else
+                {
+                    if (reader.GoToPrevPageCommand.CanExecute(null))
+                        reader.GoToPrevPageCommand.Execute(null);
+                }
                 e.Handled = true;
                 break;
 
@@ -159,13 +165,15 @@ public partial class MainWindow : Window
                 break;
 
             case Key.M:
-                reader.CycleReadingModeCommand.Execute(null);
                 e.Handled = true;
+                try { reader.CycleReadingModeCommand.Execute(null); }
+                catch (Exception ex) { LogKeyError("M", ex); }
                 break;
 
             case Key.D:
-                reader.CycleReadingDirectionCommand.Execute(null);
                 e.Handled = true;
+                try { reader.CycleReadingDirectionCommand.Execute(null); }
+                catch (Exception ex) { LogKeyError("D", ex); }
                 break;
 
             case Key.OemPlus or Key.Add when e.KeyModifiers == KeyModifiers.Control:
@@ -184,8 +192,9 @@ public partial class MainWindow : Window
                 break;
 
             case Key.F:
-                reader.CycleFitModeCommand.Execute(null);
                 e.Handled = true;
+                try { reader.CycleFitModeCommand.Execute(null); }
+                catch (Exception ex) { LogKeyError("F", ex); }
                 break;
 
             case Key.F11:
@@ -195,5 +204,27 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
         }
+    }
+
+    /// <summary>
+    /// 记录按键命令异常（文件 + 终端 + 状态栏）。
+    /// </summary>
+    private void LogKeyError(string key, Exception ex)
+    {
+        var msg = $"[{DateTime.Now:HH:mm:ss}] {key} 键命令异常: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
+        System.Diagnostics.Debug.WriteLine(msg);
+
+        // 写文件（避免终端缓冲丢失）
+        try
+        {
+            var logDir = Path.Combine(Path.GetTempPath(), "NbReader");
+            Directory.CreateDirectory(logDir);
+            File.AppendAllText(Path.Combine(logDir, "crash.log"), msg + "\n\n");
+        }
+        catch { /* 写文件失败不能影响主流程 */ }
+
+        // 状态栏提示
+        if (DataContext is ViewModels.MainWindowViewModel vm)
+            vm.Reader.StatusText = $"⚠️ {key} 键异常，详见 {Path.Combine(Path.GetTempPath(), "NbReader", "crash.log")}";
     }
 }

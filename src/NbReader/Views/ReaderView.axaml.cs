@@ -81,6 +81,15 @@ public partial class ReaderView : UserControl
                     case nameof(ReaderViewModel.ReadingMode):
                         SwitchLayout(vm.ReadingMode);
                         break;
+                    case nameof(ReaderViewModel.ScrollPagesVersion):
+                        if (vm.ScrollPagesVersion > 0)
+                        {
+                            if (_scrollPageStack is null || _scrollPageStack.Children.Count == 0)
+                                BuildScrollImages();
+                            else
+                                AppendScrollImages();
+                        }
+                        break;
                 }
             };
 
@@ -94,6 +103,10 @@ public partial class ReaderView : UserControl
     private void SwitchLayout(ReadingMode mode)
     {
         if (_scrollViewer is null) return;
+
+        // 离开滚动模式时，清理旧的滚动布局
+        if (_currentLayoutMode == ReadingMode.Scroll && mode != ReadingMode.Scroll)
+            _scrollPageStack?.Children.Clear();
 
         // 隐藏所有布局
         if (_singlePageContainer is not null)
@@ -185,37 +198,78 @@ public partial class ReaderView : UserControl
     {
         if (_scrollViewer is null) return;
 
-        if (_scrollPageStack is null)
+        try
         {
-            _scrollPageStack = new StackPanel { Orientation = Avalonia.Layout.Orientation.Vertical };
+            if (_scrollPageStack is null)
+                _scrollPageStack = new StackPanel { Orientation = Avalonia.Layout.Orientation.Vertical };
+
+            _scrollPageStack.IsVisible = true;
+            _scrollViewer.Content = _scrollPageStack;
+
+            BuildScrollImages();
         }
-
-        _scrollPageStack.IsVisible = true;
-        _scrollViewer.Content = _scrollPageStack;
-
-        // 重建滚动模式图片（从 ViewModel 获取数据）
-        BuildScrollImages();
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NbReader] Scroll layout error: {ex}");
+        }
     }
 
     private void BuildScrollImages()
     {
         if (_scrollPageStack is null || DataContext is not ReaderViewModel vm) return;
 
-        _scrollPageStack.Children.Clear();
-
-        if (vm.TotalPages <= 0) return;
-
-        // 先检查 DisplayBitmap 是否对应第一页，是则作为已加载的首页
-        // 后续页通过 IFileSource 按需加载（简化实现：只显示第一页，后续页点击加载）
-        // 完整实现可预加载后续页
-
-        var firstImage = new Image
+        try
         {
-            Source = vm.DisplayBitmap,
-            Stretch = Stretch.Uniform
-        };
-        RenderOptions.SetBitmapInterpolationMode(firstImage, BitmapInterpolationMode.HighQuality);
-        _scrollPageStack.Children.Add(firstImage);
+            _scrollPageStack.Children.Clear();
+
+            if (vm.ScrollBitmaps is null || vm.ScrollBitmaps.Count == 0) return;
+
+            foreach (var bitmap in vm.ScrollBitmaps)
+            {
+                if (bitmap is null) continue;
+                var img = new Image
+                {
+                    Source = bitmap,
+                    Stretch = Stretch.Uniform
+                };
+                RenderOptions.SetBitmapInterpolationMode(img, BitmapInterpolationMode.HighQuality);
+                _scrollPageStack.Children.Add(img);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NbReader] BuildScrollImages error: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// 增量追加后台加载的新页面（无需重建整个 StackPanel）。
+    /// </summary>
+    private void AppendScrollImages()
+    {
+        if (_scrollPageStack is null || DataContext is not ReaderViewModel vm) return;
+        if (vm.ScrollBitmaps is null) return;
+
+        try
+        {
+            int existing = _scrollPageStack.Children.Count;
+            for (int i = existing; i < vm.ScrollBitmaps.Count; i++)
+            {
+                var bitmap = vm.ScrollBitmaps[i];
+                if (bitmap is null) continue;
+                var img = new Image
+                {
+                    Source = bitmap,
+                    Stretch = Stretch.Uniform
+                };
+                RenderOptions.SetBitmapInterpolationMode(img, BitmapInterpolationMode.HighQuality);
+                _scrollPageStack.Children.Add(img);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NbReader] AppendScrollImages error: {ex}");
+        }
     }
 
     // ─── 图片来源设置 ────────────────────────────────────────────────
