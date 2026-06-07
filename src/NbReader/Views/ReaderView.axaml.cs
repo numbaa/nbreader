@@ -1,9 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.VisualTree;
 using NbReader.ViewModels;
 
 namespace NbReader.Views;
@@ -22,7 +25,7 @@ public partial class ReaderView : UserControl
     private Image? _imageControlRight;
 
     // 滚动模式控件（动态创建）
-    private StackPanel? _scrollPageStack;
+    private ListBox? _scrollListBox;
 
     // 缩放/平移状态
     private double _originalWidth;
@@ -81,15 +84,6 @@ public partial class ReaderView : UserControl
                     case nameof(ReaderViewModel.ReadingMode):
                         SwitchLayout(vm.ReadingMode);
                         break;
-                    case nameof(ReaderViewModel.ScrollPagesVersion):
-                        if (vm.ScrollPagesVersion > 0)
-                        {
-                            if (_scrollPageStack is null || _scrollPageStack.Children.Count == 0)
-                                BuildScrollImages();
-                            else
-                                AppendScrollImages();
-                        }
-                        break;
                 }
             };
 
@@ -106,15 +100,18 @@ public partial class ReaderView : UserControl
 
         // 离开滚动模式时，清理旧的滚动布局
         if (_currentLayoutMode == ReadingMode.Scroll && mode != ReadingMode.Scroll)
-            _scrollPageStack?.Children.Clear();
+        {
+            if (_scrollListBox is not null)
+                _scrollListBox.IsVisible = false;
+        }
 
         // 隐藏所有布局
         if (_singlePageContainer is not null)
             _singlePageContainer.IsVisible = false;
         if (_dualPageContainer is not null)
             _dualPageContainer.IsVisible = false;
-        if (_scrollPageStack is not null)
-            _scrollPageStack.IsVisible = false;
+        if (_scrollListBox is not null)
+            _scrollListBox.IsVisible = false;
 
         switch (mode)
         {
@@ -196,80 +193,61 @@ public partial class ReaderView : UserControl
 
     private void EnsureScrollLayout()
     {
-        if (_scrollViewer is null) return;
+        if (_scrollViewer is null || DataContext is not ReaderViewModel vm) return;
 
-        try
+        if (_scrollListBox is null)
         {
-            if (_scrollPageStack is null)
-                _scrollPageStack = new StackPanel { Orientation = Avalonia.Layout.Orientation.Vertical };
-
-            _scrollPageStack.IsVisible = true;
-            _scrollViewer.Content = _scrollPageStack;
-
-            BuildScrollImages();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[NbReader] Scroll layout error: {ex}");
-        }
-    }
-
-    private void BuildScrollImages()
-    {
-        if (_scrollPageStack is null || DataContext is not ReaderViewModel vm) return;
-
-        try
-        {
-            _scrollPageStack.Children.Clear();
-
-            if (vm.ScrollBitmaps is null || vm.ScrollBitmaps.Count == 0) return;
-
-            foreach (var bitmap in vm.ScrollBitmaps)
+            _scrollListBox = new ListBox
             {
-                if (bitmap is null) continue;
-                var img = new Image
+                ItemsSource = vm.ScrollBitmaps,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                ItemTemplate = new FuncDataTemplate<Avalonia.Media.Imaging.Bitmap?>((bmp, _) =>
                 {
-                    Source = bitmap,
-                    Stretch = Stretch.Uniform
-                };
-                RenderOptions.SetBitmapInterpolationMode(img, BitmapInterpolationMode.HighQuality);
-                _scrollPageStack.Children.Add(img);
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[NbReader] BuildScrollImages error: {ex}");
-        }
-    }
+                    var img = new Image
+                    {
+                        Stretch = Stretch.Uniform,
+                        HorizontalAlignment = HorizontalAlignment.Stretch
+                    };
+                    RenderOptions.SetBitmapInterpolationMode(img, BitmapInterpolationMode.HighQuality);
+                    img.Bind(Image.SourceProperty, new Avalonia.Data.Binding("."));
+                    return img;
+                })
+            };
+            _scrollListBox.ItemsPanel = new FuncTemplate<Panel?>(() =>
+                new VirtualizingStackPanel { Orientation = Orientation.Vertical });
 
-    /// <summary>
-    /// 增量追加后台加载的新页面（无需重建整个 StackPanel）。
-    /// </summary>
-    private void AppendScrollImages()
-    {
-        if (_scrollPageStack is null || DataContext is not ReaderViewModel vm) return;
-        if (vm.ScrollBitmaps is null) return;
-
-        try
-        {
-            int existing = _scrollPageStack.Children.Count;
-            for (int i = existing; i < vm.ScrollBitmaps.Count; i++)
+            // 禁用选中效果
+            _scrollListBox.SelectionChanged += (_, _) =>
             {
-                var bitmap = vm.ScrollBitmaps[i];
-                if (bitmap is null) continue;
-                var img = new Image
+                if (_scrollListBox.SelectedIndex >= 0)
+                    _scrollListBox.SelectedIndex = -1;
+            };
+
+            // 跟踪滚动位置，更新当前可视页码
+            _scrollListBox.TemplateApplied += (_, _) =>
+            {
+                var innerSv = _scrollListBox.FindDescendantOfType<ScrollViewer>();
+                if (innerSv is not null)
                 {
-                    Source = bitmap,
-                    Stretch = Stretch.Uniform
-                };
-                RenderOptions.SetBitmapInterpolationMode(img, BitmapInterpolationMode.HighQuality);
-                _scrollPageStack.Children.Add(img);
-            }
+                    innerSv.ScrollChanged += (_, __) =>
+                    {
+                        if (_scrollListBox.Items.Count == 0) return;
+                        var offsetY = innerSv.Offset.Y;
+                        var vh = innerSv.Viewport.Height;
+                        var idx = vh > 0 ? (int)(offsetY / vh) : 0;
+                        idx = Math.Clamp(idx, 0, _scrollListBox.Items.Count - 1);
+                        if (DataContext is ReaderViewModel vm2)
+                            vm2.VisiblePageIndex = idx;
+                    };
+                }
+            };
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[NbReader] AppendScrollImages error: {ex}");
-        }
+
+        _scrollListBox.IsVisible = true;
+        _scrollViewer.Content = _scrollListBox;
     }
 
     // ─── 图片来源设置 ────────────────────────────────────────────────
@@ -292,10 +270,7 @@ public partial class ReaderView : UserControl
             if (_imageControlLeft is not null)
                 _imageControlLeft.Source = bitmap;
         }
-        else if (_currentLayoutMode == ReadingMode.Scroll)
-        {
-            BuildScrollImages();
-        }
+        // 滚动模式：ListBox 自动通过 ItemsSource 绑定，无需手动设置
 
         if (DataContext is ReaderViewModel vm)
             ApplyFitMode(vm.FitMode);
