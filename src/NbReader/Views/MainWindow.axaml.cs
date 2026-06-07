@@ -124,6 +124,13 @@ public partial class MainWindow : Window
         switch (e.Key)
         {
             case Key.Left:
+                if (reader.ReadingDirection == ViewModels.ReadingDirection.RightToLeft)
+                    goto case Key.Right;
+                if (reader.GoToPrevPageCommand.CanExecute(null))
+                    reader.GoToPrevPageCommand.Execute(null);
+                e.Handled = true;
+                break;
+
             case Key.PageUp:
                 if (reader.GoToPrevPageCommand.CanExecute(null))
                     reader.GoToPrevPageCommand.Execute(null);
@@ -131,10 +138,33 @@ public partial class MainWindow : Window
                 break;
 
             case Key.Right:
+                if (reader.ReadingDirection == ViewModels.ReadingDirection.RightToLeft)
+                {
+                    if (reader.GoToPrevPageCommand.CanExecute(null))
+                        reader.GoToPrevPageCommand.Execute(null);
+                }
+                else
+                {
+                    if (reader.GoToNextPageCommand.CanExecute(null))
+                        reader.GoToNextPageCommand.Execute(null);
+                }
+                e.Handled = true;
+                break;
+
             case Key.PageDown:
             case Key.Space:
                 if (reader.GoToNextPageCommand.CanExecute(null))
                     reader.GoToNextPageCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.M:
+                reader.CycleReadingModeCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.D:
+                reader.CycleReadingDirectionCommand.Execute(null);
                 e.Handled = true;
                 break;
 

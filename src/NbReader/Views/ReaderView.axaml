@@ -7,11 +7,13 @@
              Background="Transparent"
              Focusable="True">
 
+    <!-- 单页模式默认布局：在 code-behind 中根据 ReadingMode 动态切换内容 -->
     <ScrollViewer x:Name="ScrollViewer"
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto"
                   Background="#FF1E1E1E">
-        <Border HorizontalAlignment="Center"
+        <Border x:Name="SinglePageContainer"
+                HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="Transparent">
             <Image x:Name="ImageControl"

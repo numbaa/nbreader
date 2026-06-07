@@ -21,6 +21,30 @@ public enum FitMode
 }
 
 /// <summary>
+/// 阅读模式。
+/// </summary>
+public enum ReadingMode
+{
+    /// <summary>单页模式（默认）。</summary>
+    SinglePage,
+    /// <summary>双页模式（左右并排）。</summary>
+    DualPage,
+    /// <summary>滚动模式（连续垂直排列）。</summary>
+    Scroll
+}
+
+/// <summary>
+/// 阅读方向。
+/// </summary>
+public enum ReadingDirection
+{
+    /// <summary>左到右（← 上一页，→ 下一页）。</summary>
+    LeftToRight,
+    /// <summary>右到左（← 下一页，→ 上一页）。</summary>
+    RightToLeft
+}
+
+/// <summary>
 /// 阅读器视图模型：管理当前显示的图片、缩放、翻页等状态。
 /// </summary>
 public partial class ReaderViewModel : ViewModelBase
@@ -73,6 +97,57 @@ public partial class ReaderViewModel : ViewModelBase
         FitMode.Original => "原始大小",
         _ => ""
     };
+
+    /// <summary>
+    /// 当前阅读模式。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReadingModeText))]
+    [NotifyPropertyChangedFor(nameof(IsSinglePage))]
+    [NotifyPropertyChangedFor(nameof(IsDualPage))]
+    [NotifyPropertyChangedFor(nameof(IsScrollMode))]
+    private ReadingMode _readingMode = ReadingMode.SinglePage;
+
+    /// <summary>
+    /// 阅读方向。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReadingDirectionText))]
+    private ReadingDirection _readingDirection = ReadingDirection.LeftToRight;
+
+    /// <summary>
+    /// 双页模式下的右侧位图。
+    /// </summary>
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _displayBitmapRight;
+
+    /// <summary>
+    /// 阅读模式的中文描述。
+    /// </summary>
+    public string ReadingModeText => ReadingMode switch
+    {
+        ReadingMode.SinglePage => "单页",
+        ReadingMode.DualPage => "双页",
+        ReadingMode.Scroll => "滚动",
+        _ => ""
+    };
+
+    /// <summary>
+    /// 阅读方向的中文描述。
+    /// </summary>
+    public string ReadingDirectionText => ReadingDirection switch
+    {
+        ReadingDirection.LeftToRight => "L→R",
+        ReadingDirection.RightToLeft => "R→L",
+        _ => ""
+    };
+
+    /// <summary>
+    /// 视图绑定的便捷属性。
+    /// </summary>
+    public bool IsSinglePage => ReadingMode == ReadingMode.SinglePage;
+    public bool IsDualPage => ReadingMode == ReadingMode.DualPage;
+    public bool IsScrollMode => ReadingMode == ReadingMode.Scroll;
 
     public ReaderViewModel(IImageLoader imageLoader)
     {
@@ -192,42 +267,136 @@ public partial class ReaderViewModel : ViewModelBase
         ComicName = fileSource.Name;
         TotalPages = fileSource.PageCount;
         CurrentPageIndex = 0;
-        await LoadCurrentPageAsync();
+        await ReloadPagesForCurrentModeAsync();
     }
 
     /// <summary>
-    /// 加载当前页。
+    /// 根据当前阅读模式加载页面。
     /// </summary>
-    private async Task LoadCurrentPageAsync()
+    private async Task ReloadPagesForCurrentModeAsync()
     {
-        if (_fileSource is null || CurrentPageIndex < 0 || CurrentPageIndex >= TotalPages)
-            return;
+        if (_fileSource is null) return;
+
+        ClearBitmaps();
+
+        switch (ReadingMode)
+        {
+            case ReadingMode.SinglePage:
+                await LoadSinglePageAsync(CurrentPageIndex);
+                break;
+            case ReadingMode.DualPage:
+                await LoadDualPagesAsync(CurrentPageIndex);
+                break;
+            case ReadingMode.Scroll:
+                await LoadScrollPagesAsync();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 单页模式：加载指定页。
+    /// </summary>
+    private async Task LoadSinglePageAsync(int index)
+    {
+        if (_fileSource is null || index < 0 || index >= TotalPages) return;
 
         IsLoading = true;
-        StatusText = $"加载中... {CurrentPageIndex + 1}/{TotalPages}";
+        StatusText = $"加载中... {index + 1}/{TotalPages}";
 
         try
         {
-            var stream = await _fileSource.GetPageStreamAsync(CurrentPageIndex);
-            var image = await _imageLoader.LoadAsync(stream);
-            await stream.DisposeAsync();
-
-            CurrentImage?.Dispose();
-            CurrentImage = image;
-
-            // 转换为 Avalonia 可渲染的 Bitmap
-            DisplayBitmap = Converters.ImageConverter.ToAvaloniaBitmap(image);
-
-            StatusText = $"{CurrentPageIndex + 1} / {TotalPages}";
+            DisplayBitmap = await DecodePageAsync(index);
+            StatusText = $"{index + 1} / {TotalPages}";
         }
         catch (Exception ex)
         {
             StatusText = $"加载失败: {ex.Message}";
         }
-        finally
+        finally { IsLoading = false; }
+    }
+
+    /// <summary>
+    /// 双页模式：加载 left (index) 和 right (index+1)。
+    /// 约定：对开页 (0,1) (2,3) (4,5)...，index 为对开页左页。
+    /// </summary>
+    private async Task LoadDualPagesAsync(int leftIndex)
+    {
+        if (_fileSource is null || leftIndex < 0 || leftIndex >= TotalPages) return;
+
+        IsLoading = true;
+        var rightIndex = leftIndex + 1;
+        StatusText = $"加载中... {leftIndex + 1}-{Math.Min(rightIndex + 1, TotalPages)}/{TotalPages}";
+
+        try
         {
-            IsLoading = false;
+            var leftTask = DecodePageAsync(leftIndex);
+            var rightTask = rightIndex < TotalPages
+                ? DecodePageAsync(rightIndex)
+                : Task.FromResult<Avalonia.Media.Imaging.Bitmap?>(null);
+
+            await Task.WhenAll(leftTask, rightTask);
+
+            DisplayBitmap = await leftTask;
+            DisplayBitmapRight = await rightTask;
+
+            StatusText = rightIndex < TotalPages
+                ? $"{leftIndex + 1}-{rightIndex + 1} / {TotalPages}"
+                : $"{leftIndex + 1} / {TotalPages}";
         }
+        catch (Exception ex)
+        {
+            StatusText = $"加载失败: {ex.Message}";
+        }
+        finally { IsLoading = false; }
+    }
+
+    /// <summary>
+    /// 滚动模式：加载所有页面。
+    /// </summary>
+    private async Task LoadScrollPagesAsync()
+    {
+        if (_fileSource is null) return;
+
+        IsLoading = true;
+        StatusText = $"加载中... 共 {TotalPages} 页";
+
+        try
+        {
+            // 先加载第一页作为 DisplayBitmap（兼容状态栏），其余在 View 中按需构建
+            DisplayBitmap = await DecodePageAsync(0);
+            StatusText = $"1 / {TotalPages}  滚动模式";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"加载失败: {ex.Message}";
+        }
+        finally { IsLoading = false; }
+    }
+
+    /// <summary>
+    /// 解码指定页为 Avalonia Bitmap。
+    /// </summary>
+    private async Task<Avalonia.Media.Imaging.Bitmap?> DecodePageAsync(int pageIndex)
+    {
+        if (_fileSource is null) return null;
+
+        var stream = await _fileSource.GetPageStreamAsync(pageIndex);
+        var image = await _imageLoader.LoadAsync(stream);
+        await stream.DisposeAsync();
+        return Converters.ImageConverter.ToAvaloniaBitmap(image);
+    }
+
+    /// <summary>
+    /// 清理所有位图资源。
+    /// </summary>
+    private void ClearBitmaps()
+    {
+        CurrentImage?.Dispose();
+        CurrentImage = null;
+        DisplayBitmap?.Dispose();
+        DisplayBitmap = null;
+        DisplayBitmapRight?.Dispose();
+        DisplayBitmapRight = null;
     }
 
     /// <summary>
@@ -236,10 +405,11 @@ public partial class ReaderViewModel : ViewModelBase
     [RelayCommand]
     private async Task GoToPrevPageAsync()
     {
-        if (CurrentPageIndex > 0)
+        int step = ReadingMode == ReadingMode.DualPage ? 2 : 1;
+        if (CurrentPageIndex >= step)
         {
-            CurrentPageIndex--;
-            await LoadCurrentPageAsync();
+            CurrentPageIndex -= step;
+            await ReloadPagesForCurrentModeAsync();
         }
     }
 
@@ -249,10 +419,11 @@ public partial class ReaderViewModel : ViewModelBase
     [RelayCommand]
     private async Task GoToNextPageAsync()
     {
-        if (CurrentPageIndex < TotalPages - 1)
+        int step = ReadingMode == ReadingMode.DualPage ? 2 : 1;
+        if (CurrentPageIndex + step < TotalPages)
         {
-            CurrentPageIndex++;
-            await LoadCurrentPageAsync();
+            CurrentPageIndex += step;
+            await ReloadPagesForCurrentModeAsync();
         }
     }
 
@@ -264,9 +435,48 @@ public partial class ReaderViewModel : ViewModelBase
     {
         if (pageIndex >= 0 && pageIndex < TotalPages)
         {
+            // 双页模式下，对齐到对开页左页
+            if (ReadingMode == ReadingMode.DualPage)
+                pageIndex = pageIndex / 2 * 2;
+
             CurrentPageIndex = pageIndex;
-            await LoadCurrentPageAsync();
+            await ReloadPagesForCurrentModeAsync();
         }
+    }
+
+    /// <summary>
+    /// 循环切换阅读模式: SinglePage → DualPage → Scroll → SinglePage。
+    /// </summary>
+    [RelayCommand]
+    private async Task CycleReadingModeAsync()
+    {
+        ReadingMode = ReadingMode switch
+        {
+            ReadingMode.SinglePage => ReadingMode.DualPage,
+            ReadingMode.DualPage => ReadingMode.Scroll,
+            ReadingMode.Scroll => ReadingMode.SinglePage,
+            _ => ReadingMode.SinglePage
+        };
+
+        // 切换到双页模式时，对齐页码到对开页左页
+        if (ReadingMode == ReadingMode.DualPage)
+            CurrentPageIndex = CurrentPageIndex / 2 * 2;
+
+        await ReloadPagesForCurrentModeAsync();
+    }
+
+    /// <summary>
+    /// 切换阅读方向。
+    /// </summary>
+    [RelayCommand]
+    private void CycleReadingDirection()
+    {
+        ReadingDirection = ReadingDirection switch
+        {
+            ReadingDirection.LeftToRight => ReadingDirection.RightToLeft,
+            ReadingDirection.RightToLeft => ReadingDirection.LeftToRight,
+            _ => ReadingDirection.LeftToRight
+        };
     }
 
     /// <summary>
@@ -313,13 +523,11 @@ public partial class ReaderViewModel : ViewModelBase
     {
         _fileSource?.Dispose();
         _fileSource = null;
-        CurrentImage?.Dispose();
-        CurrentImage = null;
-        DisplayBitmap?.Dispose();
-        DisplayBitmap = null;
+        ClearBitmaps();
         TotalPages = 0;
         CurrentPageIndex = 0;
         ComicName = string.Empty;
+        ReadingMode = ReadingMode.SinglePage;
         StatusText = "就绪";
     }
 }

@@ -167,6 +167,96 @@ public class ReaderViewModelTests
         // Assert: FillHeight → Original
         vm.FitMode.Should().Be(FitMode.Original);
     }
+
+    // ─── ReadingMode 测试 ─────────────────────────────────────────────
+
+    [Fact]
+    public void ReadingMode_Default_ShouldBeSinglePage()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+        vm.ReadingMode.Should().Be(ReadingMode.SinglePage);
+    }
+
+    [Fact]
+    public void ReadingModeText_ForEachMode_ShouldReturnChineseLabel()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        vm.ReadingMode = ReadingMode.SinglePage;
+        vm.ReadingModeText.Should().Be("单页");
+
+        vm.ReadingMode = ReadingMode.DualPage;
+        vm.ReadingModeText.Should().Be("双页");
+
+        vm.ReadingMode = ReadingMode.Scroll;
+        vm.ReadingModeText.Should().Be("滚动");
+    }
+
+    [Fact]
+    public void CycleReadingMode_ShouldCycleInOrder()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        vm.CycleReadingModeCommand.Execute(null);
+        vm.ReadingMode.Should().Be(ReadingMode.DualPage);
+
+        vm.CycleReadingModeCommand.Execute(null);
+        vm.ReadingMode.Should().Be(ReadingMode.Scroll);
+
+        vm.CycleReadingModeCommand.Execute(null);
+        vm.ReadingMode.Should().Be(ReadingMode.SinglePage);
+    }
+
+    [Fact]
+    public void IsSinglePage_IsDualPage_IsScrollMode_ShouldReflectMode()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        vm.ReadingMode = ReadingMode.SinglePage;
+        vm.IsSinglePage.Should().BeTrue();
+        vm.IsDualPage.Should().BeFalse();
+        vm.IsScrollMode.Should().BeFalse();
+
+        vm.ReadingMode = ReadingMode.DualPage;
+        vm.IsSinglePage.Should().BeFalse();
+        vm.IsDualPage.Should().BeTrue();
+
+        vm.ReadingMode = ReadingMode.Scroll;
+        vm.IsScrollMode.Should().BeTrue();
+    }
+
+    // ─── ReadingDirection 测试 ────────────────────────────────────────
+
+    [Fact]
+    public void ReadingDirection_Default_ShouldBeLeftToRight()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+        vm.ReadingDirection.Should().Be(ReadingDirection.LeftToRight);
+    }
+
+    [Fact]
+    public void ReadingDirectionText_ShouldReturnLabel()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        vm.ReadingDirection = ReadingDirection.LeftToRight;
+        vm.ReadingDirectionText.Should().Be("L→R");
+
+        vm.ReadingDirection = ReadingDirection.RightToLeft;
+        vm.ReadingDirectionText.Should().Be("R→L");
+    }
+
+    [Fact]
+    public void CycleReadingDirection_ShouldToggle()
+    {
+        var vm = new ReaderViewModel(CreateFakeLoader());
+
+        vm.CycleReadingDirectionCommand.Execute(null);
+        vm.ReadingDirection.Should().Be(ReadingDirection.RightToLeft);
+
+        vm.CycleReadingDirectionCommand.Execute(null);
+        vm.ReadingDirection.Should().Be(ReadingDirection.LeftToRight);
+    }
 }
 
 /// <summary>

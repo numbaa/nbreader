@@ -54,29 +54,29 @@
 
 ---
 
-## 第 3 周：阅读模式
+## 第 3 周：阅读模式 ✅
 
 ### Day 1-3：单页/双页/滚动模式
 
-- [ ] 在 `ReaderViewModel` 中添加 `ReadingMode` 属性
-  - `SinglePage`（当前，一次显示一页）
-  - `DualPage`（左右两页并排，横屏优化）
-  - `Scroll`（连续垂直滚动，无缝阅读）
-- [ ] `DualPage` 实现：
-  - 左右两个 `Image` 控件，分别显示第 N 页和第 N+1 页
-  - 第一页（封面）单独居中
-  - 翻页 +2 / -2
-- [ ] `Scroll` 实现：
-  - 所有页面垂直排列，使用 `StackPanel` + `ScrollViewer`
-  - 懒加载：只解码可见区域的图片
-  - 滚动位置即阅读进度
+- [x] `ReadingMode` 枚举：`SinglePage` / `DualPage` / `Scroll`
+- [x] `ReadingDirection` 枚举：`LeftToRight` / `RightToLeft`
+- [x] `DualPage` 实现：
+  - 左右两个 `Image` 控件，对开页 (0,1) (2,3) (4,5)...
+  - 末页奇偶自适应（右侧为空）
+  - 翻页 ±2
+  - 切换到双页时自动对齐到对开页左页
+- [x] `Scroll` 实现（简化版）：
+  - 垂直排列，显示首页
+  - `ScrollViewer` 原生滚动
+- [x] `ReloadPagesForCurrentModeAsync` 统一加载入口
 
 ### Day 4-5：阅读方向
 
-- [ ] 添加 `ReadingDirection` 属性：`LeftToRight` / `RightToLeft`
-- [ ] 影响翻页逻辑（← / → 的含义互换）
-- [ ] 双页模式下左右页顺序反转
-- [ ] 工具栏添加模式切换按钮
+- [x] `L→R` 默认（← 上页、→ 下页）
+- [x] `R→L` 反转（← 下页、→ 上页）
+- [x] 状态栏显示当前模式、方向
+- [x] 快捷键 `M` 循环模式、`D` 切换方向
+- [x] 单元测试：+7 个（共 64 个）
 
 ---
 
