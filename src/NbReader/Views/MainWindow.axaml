@@ -64,7 +64,8 @@
                              IsIndeterminate="True"
                              Width="80" Height="10" />
                 <TextBlock Text="{Binding Reader.StatusText}" FontSize="12"
-                           VerticalAlignment="Center" />
+                           VerticalAlignment="Center"
+                           IsVisible="{Binding Reader.IsNotScrollMode}" />
                 <TextBlock Text="{Binding Reader.ScrollPageText}" FontSize="12"
                            VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Reader.ReadingModeText}" FontSize="12"
@@ -72,8 +73,6 @@
                 <TextBlock Text="{Binding Reader.ReadingDirectionText}" FontSize="12"
                            Foreground="Gray" VerticalAlignment="Center"
                            IsVisible="{Binding Reader.IsNotScrollMode}" />
-                <TextBlock Text="{Binding Reader.FitModeText}" FontSize="12"
-                           Foreground="Gray" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Reader.FitModeText}" FontSize="12"
                            Foreground="Gray" VerticalAlignment="Center" />
                 <TextBlock FontSize="12" Foreground="Gray"

@@ -145,9 +145,14 @@ public partial class ReaderViewModel : ViewModelBase
     };
 
     /// <summary>
-    /// 滚动模式：全部页面的位图列表（ListBox 绑定源，后台持续追加）。
+    /// 滚动模式：全部页面的位图列表（View 通过事件感知新增）。
     /// </summary>
     public ObservableCollection<Avalonia.Media.Imaging.Bitmap?> ScrollBitmaps { get; } = new();
+
+    /// <summary>
+    /// 当 ScrollBitmaps 有新页面加入时触发（View 追加 Image 控件）。
+    /// </summary>
+    public event Action? ScrollBitmapsAppended;
 
     /// <summary>
     /// 视图绑定的便捷属性。
@@ -165,7 +170,7 @@ public partial class ReaderViewModel : ViewModelBase
     private int _visiblePageIndex;
 
     /// <summary>
-    /// 滚动模式状态文本：加载中显示百分比，加载完显示当前页码。
+    /// 滚动模式状态文本：始终显示当前可视页码，加载中附带进度。
     /// </summary>
     public string ScrollPageText
     {
@@ -173,9 +178,10 @@ public partial class ReaderViewModel : ViewModelBase
         {
             if (ScrollBitmaps.Count == 0) return "";
             int loaded = ScrollBitmaps.Count(n => n is not null);
+            string current = $"第 {VisiblePageIndex + 1} 页";
             if (loaded < TotalPages)
-                return $"加载中 {loaded}/{TotalPages} ({(int)(loaded * 100.0 / TotalPages)}%)";
-            return $"{VisiblePageIndex + 1} / {TotalPages}";
+                return $"{current}  [{loaded}/{TotalPages}]";
+            return $"{current} / 共 {TotalPages} 页";
         }
     }
 
@@ -388,7 +394,7 @@ public partial class ReaderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 滚动模式：首屏快速加载，后台逐步追加。
+    /// 滚动模式：首屏快速加载 5 页，后续页由 View 触发按需加载。
     /// </summary>
     private async Task LoadScrollPagesAsync()
     {
@@ -399,19 +405,15 @@ public partial class ReaderViewModel : ViewModelBase
 
         try
         {
-            const int firstBatch = 15;
+            const int firstBatch = 5;
             int initial = Math.Min(firstBatch, TotalPages);
             for (int i = 0; i < initial; i++)
                 ScrollBitmaps.Add(await DecodePageAsync(i));
 
             DisplayBitmap = ScrollBitmaps[0];
-            StatusText = initial < TotalPages
-                ? $"加载中 {initial}/{TotalPages} ({(int)(initial * 100.0 / TotalPages)}%)"
-                : $"1 / {TotalPages}  滚动模式";
+            StatusText = "";
             OnPropertyChanged(nameof(ScrollPageText));
-
-            if (initial < TotalPages)
-                _ = LoadRemainingScrollPagesAsync(initial);
+            ScrollBitmapsAppended?.Invoke();
         }
         catch (Exception ex)
         {
@@ -421,25 +423,33 @@ public partial class ReaderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 后台逐步加载剩余页面，自动通知 ListBox 追加。
+    /// 按需加载 count 页（由 View 滚动到底部时调用）。
     /// </summary>
-    private async Task LoadRemainingScrollPagesAsync(int startIndex)
+    private bool _isLoadingMore;
+
+    public async Task LoadMoreScrollPagesAsync(int count)
     {
-        if (_fileSource is null) return;
+        if (_isLoadingMore) return;
+        if (_fileSource is null || ReadingMode != ReadingMode.Scroll) return;
 
-        for (int i = startIndex; i < TotalPages; i++)
+        int start = ScrollBitmaps.Count;
+        if (start >= TotalPages) return;
+
+        _isLoadingMore = true;
+        try
         {
-            if (ReadingMode != ReadingMode.Scroll) return;
-
-            try { ScrollBitmaps.Add(await DecodePageAsync(i)); }
-            catch { ScrollBitmaps.Add(null); }
-
-            if ((i - startIndex + 1) % 10 == 0 || i == TotalPages - 1)
+            int end = Math.Min(start + count, TotalPages);
+            for (int i = start; i < end; i++)
             {
-                StatusText = $"{ScrollBitmaps.Count(n => n is not null)} / {TotalPages}  滚动模式";
-                OnPropertyChanged(nameof(ScrollPageText));
+                try { ScrollBitmaps.Add(await DecodePageAsync(i)); }
+                catch { ScrollBitmaps.Add(null); }
             }
+
+            StatusText = "";
+            OnPropertyChanged(nameof(ScrollPageText));
+            ScrollBitmapsAppended?.Invoke();
         }
+        finally { _isLoadingMore = false; }
     }
 
     /// <summary>
