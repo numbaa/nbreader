@@ -354,7 +354,7 @@ public partial class ReaderViewModel : ViewModelBase
     /// <summary>
     /// 双页模式：加载 left (index) 和 right (index+1)。
     /// 约定：对开页 (0,1) (2,3) (4,5)...，index 为对开页左页。
-    /// 封面页 (index==0) 单独居中，右侧留空。
+    /// 封面页 (index==0) 单独居中；末尾落单页左对齐、右侧留空。
     /// </summary>
     private async Task LoadDualPagesAsync(int leftIndex)
     {

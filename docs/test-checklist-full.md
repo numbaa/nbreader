@@ -3,7 +3,8 @@
 > 合并所有阶段测试用例，用于版本发布前的完整回归验证。
 > 各阶段详细清单：
 > - Phase 0→1: [`test-checklist-archive-phase0-1.md`](test-checklist-archive-phase0-1.md)
-> - Phase 1→2: [`test-checklist.md`](test-checklist.md)
+> - Phase 1→4: [`test-checklist-archive-phase1-4.md`](test-checklist-archive-phase1-4.md)
+> - Phase 5+: [`test-checklist.md`](test-checklist.md)
 
 ---
 
@@ -95,7 +96,7 @@
 ## 9. 阅读模式
 
 - [ ] 单页模式：一次一页，翻页 +1
-- [ ] 双页模式：封面居中，翻页 +2，奇数页右侧留空
+- [ ] 双页模式：封面居中，翻页 +2，落单页左侧显示右侧留空
 - [ ] 滚动模式：连续垂直排列，滚轮正常
 - [ ] 模式间切换保持阅读位置
 

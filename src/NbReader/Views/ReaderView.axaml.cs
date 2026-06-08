@@ -83,6 +83,10 @@ public partial class ReaderView : UserControl
                     case nameof(ReaderViewModel.ReadingMode):
                         SwitchLayout(vm.ReadingMode);
                         break;
+                    case nameof(ReaderViewModel.ReadingDirection):
+                        if (_currentLayoutMode == ReadingMode.DualPage)
+                            RefreshDualPageImages(vm);
+                        break;
                 }
             };
 
@@ -182,14 +186,40 @@ public partial class ReaderView : UserControl
 
         // 恢复双页图片
         if (DataContext is ReaderViewModel vm)
+            RefreshDualPageImages(vm);
+    }
+
+    /// <summary>
+    /// 刷新双页模式图片，处理 R→L 交换和落单页对齐。
+    /// </summary>
+    private void RefreshDualPageImages(ReaderViewModel vm)
+    {
+        if (_imageControlLeft is null || _imageControlRight is null) return;
+        if (_dualPageContainer is null) return;
+
+        bool isRTL = vm.ReadingDirection == ReadingDirection.RightToLeft;
+        bool isCover = vm.CurrentPageIndex == 0;
+        bool isSinglePage = vm.DisplayBitmapRight is null;
+
+        // R→L 时交换左右图片
+        var leftBitmap = isRTL ? vm.DisplayBitmapRight : vm.DisplayBitmap;
+        var rightBitmap = isRTL ? vm.DisplayBitmap : vm.DisplayBitmapRight;
+
+        _imageControlLeft.Source = leftBitmap;
+        _imageControlRight.Source = rightBitmap;
+        _imageControlRight.IsVisible = rightBitmap is not null;
+
+        // 落单页（非封面）按阅读方向对齐：L→R 左对齐，R→L 右对齐
+        // 封面及对开页始终居中
+        if (isSinglePage && !isCover)
         {
-            if (vm.DisplayBitmap is not null && _imageControlLeft is not null)
-                _imageControlLeft.Source = vm.DisplayBitmap;
-            if (_imageControlRight is not null)
-            {
-                _imageControlRight.Source = vm.DisplayBitmapRight;
-                _imageControlRight.IsVisible = vm.DisplayBitmapRight is not null;
-            }
+            _dualPageContainer.HorizontalAlignment = isRTL
+                ? Avalonia.Layout.HorizontalAlignment.Right
+                : Avalonia.Layout.HorizontalAlignment.Left;
+        }
+        else
+        {
+            _dualPageContainer.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
         }
     }
 
@@ -253,9 +283,23 @@ public partial class ReaderView : UserControl
         var vh = _scrollViewer.Viewport.Height;
         var extent = _scrollViewer.Extent.Height;
 
-        // 更新当前可视页码
-        if (vh > 0)
-            vm.VisiblePageIndex = Math.Clamp((int)(offsetY / vh), 0, _scrollPageStack.Children.Count - 1);
+        // 根据子元素实际位置计算当前可视页码
+        int visiblePage = 0;
+        double accumulatedY = 0;
+        foreach (var child in _scrollPageStack.Children)
+        {
+            if (child is Control ctrl)
+            {
+                double childHeight = ctrl.Bounds.Height > 0 ? ctrl.Bounds.Height : ctrl.DesiredSize.Height;
+                if (accumulatedY + childHeight > offsetY)
+                {
+                    visiblePage = _scrollPageStack.Children.IndexOf(child);
+                    break;
+                }
+                accumulatedY += childHeight;
+            }
+        }
+        vm.VisiblePageIndex = Math.Clamp(visiblePage, 0, _scrollPageStack.Children.Count - 1);
 
         // 距末尾 1 屏时加载后续 2 页
         if (offsetY > 0 && offsetY + vh * 2 >= extent)
@@ -279,22 +323,19 @@ public partial class ReaderView : UserControl
         }
         else if (_currentLayoutMode == ReadingMode.DualPage)
         {
-            if (_imageControlLeft is not null)
-                _imageControlLeft.Source = bitmap;
+            if (DataContext is ReaderViewModel vm)
+                RefreshDualPageImages(vm);
         }
-        // 滚动模式：ListBox 自动通过 ItemsSource 绑定，无需手动设置
+        // 滚动模式：StackPanel 自动通过追加构建，无需手动设置
 
-        if (DataContext is ReaderViewModel vm)
-            ApplyFitMode(vm.FitMode);
+        if (DataContext is ReaderViewModel vm2)
+            ApplyFitMode(vm2.FitMode);
     }
 
     private void SetRightImageSource(Bitmap? bitmap)
     {
-        if (_currentLayoutMode == ReadingMode.DualPage && _imageControlRight is not null)
-        {
-            _imageControlRight.Source = bitmap;
-            _imageControlRight.IsVisible = bitmap is not null;
-        }
+        if (_currentLayoutMode == ReadingMode.DualPage && DataContext is ReaderViewModel vm)
+            RefreshDualPageImages(vm);
     }
 
     // ─── 缩放 ────────────────────────────────────────────────────────

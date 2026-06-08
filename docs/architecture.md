@@ -11,9 +11,10 @@ nbreader/
 ├── docs/                          # 设计文档
 │   ├── long-term-plan.md
 │   ├── short-term-plan.md         # 当前短期计划（Phase 1 收尾 → Phase 2）
-│   ├── test-checklist.md          # 当前阶段测试清单
+│   ├── test-checklist.md          # 当前阶段测试清单（Phase 5+）
 │   ├── test-checklist-full.md     # 全量回归测试清单
 │   ├── test-checklist-archive-phase0-1.md   # 已归档（Phase 0→1 测试清单）
+│   ├── test-checklist-archive-phase1-4.md   # 已归档（Phase 1→4 测试清单）
 │   ├── short-term-plan-archive-phase0-1.md  # 已归档（Phase 0→1 短期计划）
 │   └── architecture.md
 ├── src/
