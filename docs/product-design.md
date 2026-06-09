@@ -251,6 +251,52 @@ canonical_title: "Ero Biiky - You're my Favorite"
 | 标题去重 | 规范化比较 + 手动合并 | 标题 alias 表辅助跨语言匹配 |
 | 未匹配实体 | 正常入库，标记 `needs_review` | 后台定期提示用户确认/合并 |
 
+**外部参考**：[EhTagTranslation](https://github.com/EhTagTranslation/Database) 社区维护了 E-Hentai 标签的多语言翻译数据库，可作为 alias 表的初始数据来源。
+
+### 2.8 Category — 用户分类
+
+Tag 描述漫画**是什么**（`big breasts`、`manga`、`eco heeky`），Category 描述用户**怎么看待**这本漫画（`正在追`、`已读完`、`待下载`）。
+
+```
+Tag（标签）         → 漫画的客观属性，跨用户一致
+Category（分类）    → 用户的主观分组，每人不同
+Series（系列）      → 漫画之间的出版关系
+```
+
+| 属性 | 说明 |
+|------|------|
+| `Name` | 分类名（如"正在追""已读完""待整理"） |
+| `SortOrder` | 排序权重（用户可拖拽排序） |
+| `Resources` | 该分类下的漫画列表 |
+
+一个 Resource 可以属于**多个** Category（比如既在"正在追"又在"收藏夹"）——Category 本质是用户打的私人标签，多分类比单选更灵活。
+
+**书架左侧栏**（Mihon 风格）：
+
+```
+┌────────────────────┐
+│ 📁 全部 (120)      │
+│ 📁 正在追 (15)     │
+│ 📁 已读完 (80)     │
+│ 📁 待下载 (10)     │
+│ 📁 收藏夹 (15)     │
+│ ──────────────     │
+│ ➕ 新建分类        │
+└────────────────────┘
+```
+
+### 2.9 阅读历史
+
+每次打开一本漫画阅读，自动记录一条历史。书架之外的独立视图，按时间倒序展示最近读过的漫画。
+
+| 属性 | 说明 |
+|------|------|
+| `ResourceId` | 阅读的漫画资源 |
+| `LastPageIndex` | 最后阅读的页码 |
+| `ReadDate` | 阅读时间 |
+
+与 `ReadingProgress` 的区别：Progress 是每本漫画的**最新**进度（用于断点续读），History 是**所有**阅读记录的时间线（用于回溯"我昨天看了什么"）。
+
 ### 2.3 Tag — 标签
 
 跨源、跨漫画的通用标签系统。
@@ -289,6 +335,7 @@ NbReader
 │
 ├── 📚 书架 ⬅ 当前阶段
 │   ├── 网格 / 列表双视图
+│   ├── 按 Category 分组（左侧栏）
 │   ├── 按 Series 分组
 │   ├── 排序（最近阅读 / 最近添加 / 标题 / 页数）
 │   ├── 筛选（标签 / 作者 / 语言 / 分类 / 来源）
@@ -296,18 +343,34 @@ NbReader
 │   ├── 封面 + 标题 + 进度条
 │   └── 右键菜单（读/删/编/导出）
 │
+├── 🕐 阅读历史
+│   ├── 按时间倒序展示最近读过的漫画
+│   ├── 点击继续阅读（断点续读）
+│   └── 可清除单条或全部历史
+│
 ├── 🏠 本地管理
 │   ├── 扫描监控目录
 │   ├── 手动添加文件/文件夹
 │   ├── 拖放导入
 │   └── 自动检测新增/删除
 │
-├── 🌐 在线浏览（Phase 3）
+├── 📥 下载管理器（后续展开）
+│   ├── 下载队列（排队、暂停、恢复、取消）
+│   ├── 手动调整优先级
+│   └── 下载进度通知
+│
+├── 🌐 在线浏览（Phase 6）
 │   ├── 浏览在线源（翻页、排序）
 │   ├── 漫画详情页（封面、标签、页数、简介）
 │   ├── 在线阅读（流式加载）
 │   ├── 下载到本地书架
 │   └── 多源搜索
+│
+├── 🔌 多源插件（Phase 7+）
+│   ├── IComicSource 插件接口
+│   ├── 内置源：nhentai
+│   ├── 社区可贡献新源
+│   └── 源启用/禁用管理
 │
 ├── ⚙️ 设置
 │   ├── 默认阅读方向 / 适应模式
@@ -523,12 +586,39 @@ CREATE TABLE resource_tags (
     FOREIGN KEY (tag_id)      REFERENCES tags(id)
 );
 
--- 阅读进度（关联资源）
+-- 阅读进度（关联资源，每资源仅最新一条）
 CREATE TABLE reading_progress (
     resource_id     INTEGER PRIMARY KEY,
     current_page    INTEGER NOT NULL DEFAULT 0,
     last_read_time  TEXT    NOT NULL,
     FOREIGN KEY (resource_id) REFERENCES comic_resources(id)
+);
+
+-- 阅读历史（每次打开追加一条，保留全部时间线）
+CREATE TABLE read_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    resource_id     INTEGER NOT NULL,
+    last_page_index INTEGER NOT NULL DEFAULT 0,
+    read_date       TEXT    NOT NULL,
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id)
+);
+CREATE INDEX idx_history_resource ON read_history(resource_id);
+CREATE INDEX idx_history_date     ON read_history(read_date DESC);
+
+-- 用户分类
+CREATE TABLE categories (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- 资源-分类 多对多
+CREATE TABLE resource_categories (
+    resource_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
+    PRIMARY KEY (resource_id, category_id),
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
 -- 用户设置
@@ -675,11 +765,11 @@ public class ComicDetail
 
 | 步骤 | 内容 |
 |------|------|
-| P5.1 | SQLite 持久化层（按照更新后的 Schema） |
-| P5.2 | `LibraryViewModel` + `LibraryView`（书架 UI） |
+| P5.1 | SQLite 持久化层（完整 Schema，含 categories + history） |
+| P5.2 | `LibraryViewModel` + `LibraryView`（书架 UI + 左侧 Category 栏） |
 | P5.3 | 本地扫描入库（`LibraryScanner`） |
-| P5.4 | 阅读进度自动保存/恢复 |
-| P5.5 | 基础筛选（语言、分类） |
+| P5.4 | 阅读进度自动保存/恢复 + 阅读历史记录 |
+| P5.5 | 基础筛选（语言、分类、Category） |
 
 ### 下一阶段：Phase 6 — 在线源
 
@@ -695,11 +785,12 @@ public class ComicDetail
 
 | 步骤 | 内容 |
 |------|------|
-| P7.1 | 标签系统完善（中文映射、标签计数） |
-| P7.2 | Series 分组管理 |
-| P7.3 | 更多在线源（插件化） |
-| P7.4 | 元数据编辑 |
-| P7.5 | 深色/浅色主题 |
+| P7.1 | 下载管理器（队列、优先级、通知） |
+| P7.2 | 多源插件架构（IComicSource 社区扩展） |
+| P7.3 | 标签系统完善（EhTagTranslation 导入 + 中文映射） |
+| P7.4 | Series 分组管理 |
+| P7.5 | 元数据编辑 |
+| P7.6 | 深色/浅色主题 |
 
 ---
 
@@ -710,10 +801,14 @@ public class ComicDetail
 | 本地和在线漫画是否统一表？ | ✅ 统一 `comic_resources` | 书架体验一致 |
 | 收藏和下载是否独立？ | ✅ `is_bookmarked` ≠ `is_downloaded` | 用户可只收藏（在线读），以后再下载 |
 | 同一本漫画的不同版本如何关联？ | ✅ `comic_works` 聚合 | nhentai + e-hentai + 本地 CBZ → 同一 Work |
+| **用户分类 vs 标签怎么区分？** | **Tag = 客观属性，Category = 主观分组** | Tag 跨漫画通用；Category 是用户私人书架管理 |
+| 一个 Resource 能属于多个 Category 吗？ | ✅ 多对多 | 同一本可以既在"正在追"又在"收藏夹" |
 | 同一网站重复上传如何防重？ | `UNIQUE(source_type, source_id)` + Work 推测 | 不入库重复资源；Work 层提示合并 |
-| **多语言标签/作者如何处理？** | **Canonical(英文) + Alias(多语言映射)** | 英文覆盖面最广；alias 表支持反向查找和中文显示 |
-| 未匹配的标签/作者怎么处理？ | 以原始名创建 canonical，标记 `needs_review` | 不阻塞导入流程，后续人工/社区完善 |
-| 去重靠自动还是手动？ | 自动推测 + 手动确认 | 自动过于激进会误伤；手动是最终仲裁 |
+| 多语言标签/作者如何处理？ | Canonical(英文) + Alias(多语言映射) | 英文覆盖面最广；可导入 EhTagTranslation 数据 |
+| 未匹配的标签/作者怎么处理？ | 以原始名创建 canonical，标记 `needs_review` | 不阻塞导入流程 |
+| 去重靠自动还是手动？ | 自动推测 + 手动确认 | 自动过于激进会误伤 |
 | 进度关联什么？ | 关联 `resource_id` | 不同版本进度独立 |
+| 阅读历史 vs 阅读进度？ | History = 全部时间线，Progress = 最新状态 | History 找回"昨天看了什么"，Progress 用于断点续读 |
 | 在线阅读和本地阅读是否共用 ReaderView？ | ✅ 共用 | `IFileSource` 多态 |
+| 多源支持架构？ | `IComicSource` 插件接口 | 内置 nhentai，社区可扩展更多源 |
 | 系列是否强制？ | ❌ 可选 | 大量同人本是单本 |
