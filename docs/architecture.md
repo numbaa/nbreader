@@ -9,8 +9,9 @@ nbreader/
 ├── .gitignore
 ├── AGENTS.md
 ├── docs/                          # 设计文档
+│   ├── product-design.md          # 产品设计（权威数据模型与功能地图）
 │   ├── long-term-plan.md
-│   ├── short-term-plan.md         # 当前短期计划（Phase 1 收尾 → Phase 2）
+│   ├── short-term-plan.md         # 当前短期计划（Phase 5）
 │   ├── test-checklist.md          # 当前阶段测试清单（Phase 5+）
 │   ├── test-checklist-full.md     # 全量回归测试清单
 │   ├── test-checklist-archive-phase0-1.md   # 已归档（Phase 0→1 测试清单）

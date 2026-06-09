@@ -1,7 +1,8 @@
 # NbReader 持久化设计（SQLite）
 
 > 草稿 — 待评审修改。
-> 关联：[short-term-plan.md](short-term-plan.md) | [architecture.md](architecture.md)
+> **注意**：Schema 已被 [`product-design.md`](product-design.md) 第 6 节覆盖，本文档保留技术实现细节。
+> 关联：[short-term-plan.md](short-term-plan.md) | [architecture.md](architecture.md) | [product-design.md](product-design.md)
 
 ---
 
@@ -47,6 +48,9 @@
 ---
 
 ## 5. Schema
+
+> ⚠️ **此 Schema 已被 [`product-design.md`](product-design.md) 第 6 节取代。**
+> 下面保留初版以供参考，实际实施以 product-design.md 中 `comic_works` + `comic_resources` 双层模型为准。
 
 ```sql
 -- 用户设置（key-value）
