@@ -159,20 +159,109 @@
 - 用户可以将多本漫画手动归入一个系列
 - 书架按 Series 分组展示，单本则直接展示
 
+### 2.7 多语言与跨源实体映射
+
+**问题**：同一个标签/作者/标题，在不同网站可能是中文、英文、日文——但它们指向同一个东西。
+
+```
+nhentai:    "big breasts"     "eco heeky"     "Ero Biiky"
+中国站点:    "巨乳"             "えこひいき"     "えろびいき"
+日本站点:    "大きな胸"         "eco heeky"     "えろびいき"
+              ↑ 同一标签         ↑ 同一作者       ↑ 同一漫画
+```
+
+#### 设计策略：Canonical + Alias 双层
+
+```
+┌─────────────────────┐
+│   CanonicalEntity   │  ← 全局唯一实体（一人/一标签/一作品）
+│   id, canonical_name│
+└─────────┬───────────┘
+          │ 1:N
+          ▼
+┌─────────────────────┐
+│     EntityAlias     │  ← 各语言/各来源的叫法
+│   entity_id         │
+│   alias             │     "big breasts" (en) / "巨乳" (zh) / "大きな胸" (ja)
+│   language          │
+│   source_type       │     (可选) 限定来源，NULL = 通用
+└─────────────────────┘
+```
+
+#### 2.7.1 标签（Tag）多语言
+
+以 **英文为规范名**（nhentai 标准，覆盖面最广）。中文名作为显示映射。
+
+| 场景 | 处理方式 |
+|------|----------|
+| **从 nhentai 导入** | 英文标签直接命中 canonical → 完成 |
+| **从中文站点导入** | 中文标签如"巨乳" → 反向查 alias 表 → 命中 canonical `big breasts` → 完成 |
+| **映射表未覆盖** | 以导入时的名称创建新 canonical，标记 `needs_review` |
+| **UI 展示** | 用户界面为中文 → 优先显示 alias 中的中文名；无映射时显示英文原名 |
+
+**预置映射**：系统内置 ~200 条常用标签的中文映射（手动维护一个 JSON 文件或直接写入 alias 表）。后续用户/社区可以扩展。
+
+```
+英文 canonical       中文显示名       日文显示名
+─────────────────────────────────────────────
+big breasts          巨乳             大きな胸
+nakadashi            中出し           中出し
+ahegao               阿嘿颜           アヘ顔
+netorare             寝取られ         NTR
+ffm threesome        3P (女男女)      FFM 3P
+...
+```
+
+#### 2.7.2 作者（Author）多语言
+
+作者是类型为 `artist` 的 tag，复用同一套 Canonical + Alias 机制。
+
+```
+canonical: "eco heeky"
+  ├── alias: "えこひいき" (ja)
+  └── alias: "eco heeky" (en, romaji)
+```
+
+对于作者，规范名优先用 **romaji（罗马音）**，因为跨语言搜索时最稳定。
+
+#### 2.7.3 标题（Title）多语言
+
+`ComicResource.title` 始终保留**来源原始标题**，不做翻译。`ComicWork.canonical_title` 取第一个导入的 Resource 的标题，用户可以手动编辑。
+
+去重时标题比较策略：
+1. 提取"裸标题"（去掉 `[作者]` `[团体]` `[语言]` 等前缀后缀）
+2. 转小写、去空格、去特殊符号
+3. 裸标题完全相同 → 推测为同一 Work
+4. 不同语言的标题（如 romaji vs 日文）→ 仅靠标题无法自动匹配，需 alias 映射辅助
+
+**标题 alias 表（可选，后续阶段）**：
+
+```
+canonical_title: "Ero Biiky - You're my Favorite"
+  ├── alias: "えろびいき" (ja)
+  └── alias: "에로 비이키" (ko)
+```
+
+#### 2.7.4 实现取舍
+
+| 维度 | v1.0 策略 | 后续增强 |
+|------|-----------|----------|
+| 标签映射 | 预置 ~200 条中文映射，其余显示英文 | 社区贡献映射表、自动翻译建议 |
+| 作者映射 | 按来源原始名存储，手动合并 | 自动推测（同画廊的 artist tag 可作为线索） |
+| 标题去重 | 规范化比较 + 手动合并 | 标题 alias 表辅助跨语言匹配 |
+| 未匹配实体 | 正常入库，标记 `needs_review` | 后台定期提示用户确认/合并 |
+
 ### 2.3 Tag — 标签
 
 跨源、跨漫画的通用标签系统。
 
 | 属性 | 说明 |
 |------|------|
-| `Name` | 标签名（英文，规范化） |
-| `DisplayName` | 显示名（中文映射） |
-| `Type` | 标签类型：`General` / `Artist` / `Character` / `Parody` / `Language` / `Category` |
-| `Count` | 书架中此标签下的漫画数（缓存，方便排序） |
+| `Name` | 规范名（英文，如 `big breasts`） |
+| `Type` | 标签类型：`general` / `artist` / `character` / `parody` / `language` / `category` |
+| `Aliases` | 多语言显示名（如 `巨乳`、`大きな胸`） |
 
-**标签来源**：
-- 本地漫画：从 ComicInfo.xml 或文件名解析
-- nhentai：从 API 返回的 tags 字段直接映射
+> 多语言标签/作者/标题的完整处理方案见 [2.7 多语言与跨源实体映射](#27-多语言与跨源实体映射)。
 
 ### 2.4 ComicSource — 漫画源
 
@@ -403,13 +492,27 @@ CREATE TABLE series (
     description TEXT
 );
 
--- 标签（全局去重）
+-- 标签（全局去重，英文规范名）
 CREATE TABLE tags (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    name         TEXT    NOT NULL UNIQUE,
-    display_name TEXT,
-    type         TEXT    NOT NULL DEFAULT 'general'
+    name         TEXT    NOT NULL UNIQUE,   -- 英文规范名，如 "big breasts"
+    type         TEXT    NOT NULL DEFAULT 'general',
+    needs_review INTEGER NOT NULL DEFAULT 0 -- 是否待人工确认
 );
+CREATE INDEX idx_tag_type ON tags(type);
+
+-- 标签/作者多语言别名
+CREATE TABLE entity_aliases (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    tag_id      INTEGER NOT NULL,           -- FK → tags.id
+    alias       TEXT    NOT NULL,           -- 别名，如 "巨乳"
+    language    TEXT,                       -- 'zh' | 'ja' | 'en' | ...
+    source_type TEXT,                       -- 限定来源，NULL = 通用
+    FOREIGN KEY (tag_id) REFERENCES tags(id),
+    UNIQUE(tag_id, alias)
+);
+CREATE INDEX idx_alias_tag  ON entity_aliases(tag_id);
+CREATE INDEX idx_alias_name ON entity_aliases(alias);
 
 -- 资源-标签 多对多
 CREATE TABLE resource_tags (
@@ -604,12 +707,13 @@ public class ComicDetail
 
 | 决策 | 结论 | 理由 |
 |------|------|------|
-| 本地和在线漫画是否统一表？ | ✅ 统一 `comic_resources` | 书架体验一致，筛选/搜索/进度跨源通用 |
-| 收藏和下载是否独立？ | ✅ `is_bookmarked` ≠ `is_downloaded` | 用户可以只收藏（在线读），以后再下载 |
-| 同一本漫画的不同版本如何关联？ | ✅ `comic_works` 聚合 | nhentai + e-hentai + 本地 CBZ 指向同一 Work |
-| 同一网站重复上传如何防重？ | `UNIQUE(source_type, source_id)` + Work 推测 | 不入库重复资源；Work 层提示用户合并 |
+| 本地和在线漫画是否统一表？ | ✅ 统一 `comic_resources` | 书架体验一致 |
+| 收藏和下载是否独立？ | ✅ `is_bookmarked` ≠ `is_downloaded` | 用户可只收藏（在线读），以后再下载 |
+| 同一本漫画的不同版本如何关联？ | ✅ `comic_works` 聚合 | nhentai + e-hentai + 本地 CBZ → 同一 Work |
+| 同一网站重复上传如何防重？ | `UNIQUE(source_type, source_id)` + Work 推测 | 不入库重复资源；Work 层提示合并 |
+| **多语言标签/作者如何处理？** | **Canonical(英文) + Alias(多语言映射)** | 英文覆盖面最广；alias 表支持反向查找和中文显示 |
+| 未匹配的标签/作者怎么处理？ | 以原始名创建 canonical，标记 `needs_review` | 不阻塞导入流程，后续人工/社区完善 |
 | 去重靠自动还是手动？ | 自动推测 + 手动确认 | 自动过于激进会误伤；手动是最终仲裁 |
-| 进度关联什么？ | 关联 `resource_id` | 不同 Resource 的进度独立（中文版看到 42 页≠英文版也看到 42 页） |
+| 进度关联什么？ | 关联 `resource_id` | 不同版本进度独立 |
 | 在线阅读和本地阅读是否共用 ReaderView？ | ✅ 共用 | `IFileSource` 多态 |
-| 标签是否全局去重？ | ✅ 是 | 跨源通用筛选 |
 | 系列是否强制？ | ❌ 可选 | 大量同人本是单本 |
