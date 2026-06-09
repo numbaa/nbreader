@@ -1,10 +1,11 @@
 # NbReader 全量回归测试清单
 
 > 合并所有阶段测试用例，用于版本发布前的完整回归验证。
-> 各阶段详细清单：
+> 产品设计：[`product-design.md`](product-design.md)
+> 各阶段清单：
 > - Phase 0→1: [`test-checklist-archive-phase0-1.md`](test-checklist-archive-phase0-1.md)
-> - Phase 1→4: [`test-checklist-archive-phase1-4.md`](test-checklist-archive-phase1-4.md)
-> - Phase 5+: [`test-checklist.md`](test-checklist.md)
+> - Phase 1→4 旧: [`test-checklist-archive-phase1-4.md`](test-checklist-archive-phase1-4.md)
+> - Phase 2: [`test-checklist.md`](test-checklist.md)
 
 ---
 

@@ -9,10 +9,10 @@ nbreader/
 ├── .gitignore
 ├── AGENTS.md
 ├── docs/                          # 设计文档
-│   ├── product-design.md          # 产品设计（权威数据模型与功能地图）
-│   ├── long-term-plan.md
-│   ├── short-term-plan.md         # 当前短期计划（Phase 5）
-│   ├── test-checklist.md          # 当前阶段测试清单（Phase 5+）
+│   ├── product-design.md          # 产品设计（权威参考：数据模型/UI/交互）
+│   ├── long-term-plan.md          # 长期计划与里程碑
+│   ├── short-term-plan.md         # 当前短期计划（Phase 2）
+│   ├── test-checklist.md          # 当前阶段测试清单（Phase 2）
 │   ├── test-checklist-full.md     # 全量回归测试清单
 │   ├── test-checklist-archive-phase0-1.md   # 已归档（Phase 0→1 测试清单）
 │   ├── test-checklist-archive-phase1-4.md   # 已归档（Phase 1→4 测试清单）
@@ -26,11 +26,17 @@ nbreader/
 │   │   ├── ViewLocator.cs
 │   │   ├── Views/                  # 视图（AXAML + code-behind）
 │   │   │   ├── MainWindow.axaml / .axaml.cs
-│   │   │   └── ReaderView.axaml / .axaml.cs  ✅
+│   │   │   ├── ReaderView.axaml / .axaml.cs
+│   │   │   ├── LibraryView.axaml / .axaml.cs      ⬅ Phase 2
+│   │   │   ├── HistoryView.axaml / .axaml.cs      ⬅ Phase 2
+│   │   │   └── SourceBrowserView.axaml / .axaml.cs ⬅ Phase 3
 │   │   ├── ViewModels/             # 视图模型
 │   │   │   ├── ViewModelBase.cs
 │   │   │   ├── MainWindowViewModel.cs
-│   │   │   └── ReaderViewModel.cs
+│   │   │   ├── ReaderViewModel.cs
+│   │   │   ├── LibraryViewModel.cs       ⬅ Phase 2
+│   │   │   ├── HistoryViewModel.cs       ⬅ Phase 2
+│   │   │   └── SourceBrowserViewModel.cs ⬅ Phase 3
 │   │   ├── Converters/             # 值转换器 ✅
 │   │   │   └── ImageConverter.cs   # IImage → Avalonia Bitmap
 │   │   ├── Services/               # UI 层服务
@@ -46,50 +52,63 @@ nbreader/
 │   │   │   └── IArchiveService.cs
 │   │   ├── Models/                 # 领域模型 ✅
 │   │   │   ├── ComicInfo.cs
+│   │   │   ├── ComicWork.cs         ⬅ Phase 2
+│   │   │   ├── ComicResource.cs     ⬅ Phase 2
 │   │   │   ├── PageInfo.cs
-│   │   │   └── ReadingProgress.cs
-│   │   ├── Services/               # 核心服务实现 ✅
-│   │   │   ├── SkiaImage.cs        ✅ IImage 实现
-│   │   │   ├── SkiaImageLoader.cs  ✅ IImageLoader 实现
-│   │   │   ├── DirectoryFileSource.cs  ✅ 图片文件夹文件源
-│   │   │   ├── CbzFileSource.cs        ✅ CBZ 压缩包文件源
-│   │   │   ├── CbrFileSource.cs        ✅ CBR 压缩包文件源
-│   │   │   └── FileSourceFactory.cs    ✅ 文件源工厂
+│   │   │   ├── ReadingProgress.cs
+│   │   │   ├── Tag.cs               ⬅ Phase 2
+│   │   │   └── Category.cs          ⬅ Phase 2
+│   │   ├── Services/               # 核心服务实现
+│   │   │   ├── SkiaImage.cs
+│   │   │   ├── SkiaImageLoader.cs
+│   │   │   ├── DirectoryFileSource.cs
+│   │   │   ├── CbzFileSource.cs
+│   │   │   ├── CbrFileSource.cs
+│   │   │   ├── FileSourceFactory.cs
+│   │   │   ├── SqliteStorageService.cs    ⬅ Phase 2
+│   │   │   └── LibraryScanner.cs          ⬅ Phase 2
 │   │   └── Extensions/             # 扩展方法（待实现）
 │   │
 │   └── NbReader.Tests/             # 测试项目
 │       ├── NbReader.Tests.csproj
 │       ├── Core/                   # 核心逻辑测试
-│       │   ├── SkiaImageLoaderTests.cs       ✅ 6 个用例
-│       │   ├── ImageConverterTests.cs        ✅ 4 个用例
-│       │   ├── DirectoryFileSourceTests.cs   ✅ 12 个用例
-│       │   ├── CbzFileSourceTests.cs         ✅ 12 个用例
-│       │   ├── CbrFileSourceTests.cs         ✅ 6 个用例
-│       │   └── FileSourceFactoryTests.cs     ✅ 8 个用例
+│       │   ├── SkiaImageLoaderTests.cs
+│       │   ├── ImageConverterTests.cs
+│       │   ├── DirectoryFileSourceTests.cs
+│       │   ├── CbzFileSourceTests.cs
+│       │   ├── CbrFileSourceTests.cs
+│       │   ├── FileSourceFactoryTests.cs
+│       │   └── SqliteStorageServiceTests.cs  ⬅ Phase 2
 │       └── UI/                     # UI 逻辑测试
-│           └── ReaderViewModelTests.cs       ✅ 17 个用例
+│           ├── ReaderViewModelTests.cs
+│           └── LibraryViewModelTests.cs      ⬅ Phase 2
 ```
 
 ---
 
-## 2. 分层架构
+## 2. 分层架构（Phase 2 更新）
 
 ```
-┌──────────────────────────────────────────┐
-│              UI Layer (NbReader)         │
-│  Avalonia Views + ViewModels + Converters │
-├──────────────────────────────────────────┤
-│          Core Layer (NbReader.Core)      │
-│     Models + Services + Abstractions     │
-├──────────────────────────────────────────┤
-│          Infrastructure (NuGet)          │
-│  Avalonia, SharpCompress, SkiaSharp, ... │
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                   UI Layer (NbReader)                    │
+│  ReaderView │ LibraryView │ HistoryView │ SettingsView  │
+│  (Phase 3: SourceBrowserView)                           │
+├──────────────────────────────────────────────────────────┤
+│            Core Layer (NbReader.Core)                    │
+│  Abstractions: IFileSource │ IStorageService │ IImageLoader
+│  Services:     SqliteStorageService │ LibraryScanner     │
+│               FileSourceFactory │ SkiaImageLoader        │
+│  Models:       ComicWork │ ComicResource │ Series       │
+│               Tag │ Category │ ReadingProgress          │
+├──────────────────────────────────────────────────────────┤
+│          Infrastructure                                  │
+│  Avalonia │ SkiaSharp │ SharpCompress │ SQLite │ HTTP   │
+└──────────────────────────────────────────────────────────┘
 ```
 
 **依赖规则：**
 - `NbReader` → `NbReader.Core` ✓
-- `NbReader.Core` → `NbReader` ✗（核心库不依赖 UI）
+- `NbReader.Core` → `NbReader` ✗
 - `NbReader.Tests` → `NbReader.Core` + `NbReader` ✓
 
 ---
