@@ -57,8 +57,9 @@
 |------|------|------|------|
 | `Id` | int | 自增主键 | 1 |
 | `CanonicalTitle` | string | 规范化标题（去作者/团体前缀） | "Ero Biiky - You're my Favorite" |
-| `Author` | string? | 作者/画师 | "eco heeky" |
 | `Description` | string? | 简介 | |
+
+> **作者不存储在 Work 上**。作者统一走 `tags` 表（`type='artist'`），通过 Resource 关联的 artist tag 推算 Work 的作者。避免 ComicWork 和 tags 双重维护不一致。
 
 **关键**：`ComicWork` 是可选层。大多数漫画不需要手动创建 Work——系统会在下载或收藏时**自动推测**（同标题+同作者→同一 Work），用户也可以手动合并/拆分。
 
@@ -77,7 +78,7 @@
 | `CoverPath` | string? | 封面图本地缓存路径 | |
 | `PageCount` | int | 总页数 | 174 |
 | `Language` | string? | 语言 | "chinese" |
-| `Category` | string? | 分类 | "manga" |
+| `ContentType` | string? | 内容类型（原 Category，改名避免与用户分类混淆） | "manga" |
 | `AddedDate` | datetime | 加入书架时间 | |
 | `LastReadDate` | datetime? | 最后阅读时间 | |
 | `IsBookmarked` | bool | 是否收藏（在书架中可见） | true |
@@ -147,8 +148,10 @@
 | 属性 | 说明 |
 |------|------|
 | `Title` | 系列名（如 "One Piece"） |
-| `Author` | 作者 |
+| `Description` | 简介 |
 | `Resources` | 该系列下所有 Resource，按 VolumeNumber 排序 |
+
+> **作者不存储在 Series 上**，统一走 tags 表。
 
 **Series 与 ComicWork 的区别**：
 - `ComicWork`：**同一本**漫画的多个版本（如中文版 vs 日文版）
@@ -660,7 +663,7 @@ nhentai 的 API 返回结构和我们的 ComicBook 模型天然契合：
 | `tags[type=tag]` | Tags | 转换为通用标签 |
 | `tags[type=artist]` | Artists | 作为标签存储 |
 | `tags[type=language]` | Language | 取第一个 |
-| `tags[type=category]` | Category | 取第一个 |
+| `tags[type=category]` | ContentType | 取第一个 |
 | `num_pages` | `PageCount` | |
 | `images.cover` | `CoverPath` | 下载缓存 |
 | `images.pages` | Page 列表 | 每页的图片 URL |
@@ -712,141 +715,231 @@ nhentai 的 API 返回结构和我们的 ComicBook 模型天然契合：
 
 ---
 
-## 6. SQLite 数据模型（更新版）
+## 6. SQLite 数据模型
 
-基于 `ComicWork` + `ComicResource` 双层模型：
+> **实现时直接使用。** 所有表使用 `IF NOT EXISTS`，首次启动自动建表。
 
 ```sql
+-- ═══════════════════════════════════════════════════════════
+-- 初始化（SqliteStorageService 构造函数中执行）
+-- ═══════════════════════════════════════════════════════════
+PRAGMA foreign_keys = ON;
+PRAGMA journal_mode  = WAL;
+PRAGMA busy_timeout  = 5000;
+
+-- ═══════════════════════════════════════════════════════════
 -- 抽象作品（同一本漫画，跨源/跨版本）
-CREATE TABLE comic_works (
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS comic_works (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     canonical_title TEXT    NOT NULL,
-    author          TEXT
+    description     TEXT
 );
-CREATE INDEX idx_work_title  ON comic_works(canonical_title);
-CREATE INDEX idx_work_author ON comic_works(author);
+CREATE INDEX IF NOT EXISTS idx_work_title ON comic_works(canonical_title);
 
--- 具体资源（书架的直接条目）
-CREATE TABLE comic_resources (
+-- ═══════════════════════════════════════════════════════════
+-- 具体资源（书架的直接条目，阅读的原子单位）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS comic_resources (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     work_id         INTEGER,              -- FK → comic_works.id，可为空
-    title           TEXT    NOT NULL,
+    title           TEXT    NOT NULL,      -- 完整标题（含版本信息）
     source_type     TEXT    NOT NULL,      -- 'local' | 'nhentai' | 'ehentai' | ...
     source_id       TEXT    NOT NULL,      -- 来源内唯一标识
     source_url      TEXT,                  -- 在线地址
-    cover_path      TEXT,
+    cover_path      TEXT,                  -- 封面图本地缓存路径
     page_count      INTEGER NOT NULL DEFAULT 0,
-    language        TEXT,
-    category        TEXT,
-    added_date      TEXT    NOT NULL,
-    last_read_date  TEXT,
+    language        TEXT,                  -- 'chinese' | 'japanese' | 'english' | ...
+    content_type    TEXT,                  -- 'manga' | 'doujinshi' | 'artist cg' | ...
+    added_date      TEXT    NOT NULL,      -- ISO 8601
+    last_read_date  TEXT,                  -- ISO 8601
     is_bookmarked   INTEGER NOT NULL DEFAULT 0,
     is_downloaded   INTEGER NOT NULL DEFAULT 0,
     local_path      TEXT,                  -- 下载后的本地文件路径
     series_id       INTEGER,              -- FK → series.id
-    volume_number   INTEGER,
+    volume_number   INTEGER,              -- 卷/话序号
     FOREIGN KEY (work_id)   REFERENCES comic_works(id),
     FOREIGN KEY (series_id) REFERENCES series(id),
     UNIQUE(source_type, source_id)
 );
-CREATE INDEX idx_resource_work   ON comic_resources(work_id);
-CREATE INDEX idx_resource_series ON comic_resources(series_id);
-CREATE INDEX idx_resource_added  ON comic_resources(added_date);
-CREATE INDEX idx_resource_read   ON comic_resources(last_read_date);
-CREATE INDEX idx_resource_bookmarked ON comic_resources(is_bookmarked);
+CREATE INDEX IF NOT EXISTS idx_resource_work       ON comic_resources(work_id);
+CREATE INDEX IF NOT EXISTS idx_resource_series     ON comic_resources(series_id);
+CREATE INDEX IF NOT EXISTS idx_resource_added      ON comic_resources(added_date);
+CREATE INDEX IF NOT EXISTS idx_resource_read       ON comic_resources(last_read_date);
+CREATE INDEX IF NOT EXISTS idx_resource_bookmarked ON comic_resources(is_bookmarked);
+CREATE INDEX IF NOT EXISTS idx_resource_language   ON comic_resources(language);
+CREATE INDEX IF NOT EXISTS idx_resource_content    ON comic_resources(content_type);
 
--- 系列（多卷/多话）
-CREATE TABLE series (
+-- ═══════════════════════════════════════════════════════════
+-- 系列（多卷/多话聚合）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS series (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT    NOT NULL,
-    author      TEXT,
     description TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_series_title ON series(title);
 
+-- ═══════════════════════════════════════════════════════════
 -- 标签（全局去重，英文规范名）
-CREATE TABLE tags (
+-- 作者也是 tag（type='artist'），不单独建表
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS tags (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     name         TEXT    NOT NULL UNIQUE,   -- 英文规范名，如 "big breasts"
     type         TEXT    NOT NULL DEFAULT 'general',
     needs_review INTEGER NOT NULL DEFAULT 0 -- 是否待人工确认
 );
-CREATE INDEX idx_tag_type ON tags(type);
+CREATE INDEX IF NOT EXISTS idx_tag_type   ON tags(type);
+CREATE INDEX IF NOT EXISTS idx_tag_review ON tags(needs_review);
 
+-- ═══════════════════════════════════════════════════════════
 -- 标签/作者多语言别名
-CREATE TABLE entity_aliases (
+-- 导入时可反向查找：SELECT tag_id FROM entity_aliases WHERE alias = '巨乳'
+-- 展示时可正向查找：SELECT alias FROM entity_aliases WHERE tag_id = 1 AND language = 'zh'
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS entity_aliases (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    tag_id      INTEGER NOT NULL,           -- FK → tags.id
-    alias       TEXT    NOT NULL,           -- 别名，如 "巨乳"
+    tag_id      INTEGER NOT NULL,
+    alias       TEXT    NOT NULL,
     language    TEXT,                       -- 'zh' | 'ja' | 'en' | ...
     source_type TEXT,                       -- 限定来源，NULL = 通用
-    FOREIGN KEY (tag_id) REFERENCES tags(id),
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
     UNIQUE(tag_id, alias)
 );
-CREATE INDEX idx_alias_tag  ON entity_aliases(tag_id);
-CREATE INDEX idx_alias_name ON entity_aliases(alias);
+CREATE INDEX IF NOT EXISTS idx_alias_tag  ON entity_aliases(tag_id);
+CREATE INDEX IF NOT EXISTS idx_alias_name ON entity_aliases(alias);
 
+-- ═══════════════════════════════════════════════════════════
 -- 资源-标签 多对多
-CREATE TABLE resource_tags (
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS resource_tags (
     resource_id INTEGER NOT NULL,
     tag_id      INTEGER NOT NULL,
     PRIMARY KEY (resource_id, tag_id),
-    FOREIGN KEY (resource_id) REFERENCES comic_resources(id),
-    FOREIGN KEY (tag_id)      REFERENCES tags(id)
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id)      REFERENCES tags(id)             ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_rt_tag ON resource_tags(tag_id);
 
--- 阅读进度（关联资源，每资源仅最新一条）
-CREATE TABLE reading_progress (
-    resource_id     INTEGER PRIMARY KEY,
-    current_page    INTEGER NOT NULL DEFAULT 0,
-    last_read_time  TEXT    NOT NULL,
-    FOREIGN KEY (resource_id) REFERENCES comic_resources(id)
-);
-
--- 阅读历史（每次打开追加一条，保留全部时间线）
-CREATE TABLE read_history (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    resource_id     INTEGER NOT NULL,
-    last_page_index INTEGER NOT NULL DEFAULT 0,
-    read_date       TEXT    NOT NULL,
-    FOREIGN KEY (resource_id) REFERENCES comic_resources(id)
-);
-CREATE INDEX idx_history_resource ON read_history(resource_id);
-CREATE INDEX idx_history_date     ON read_history(read_date DESC);
-
--- 用户分类
-CREATE TABLE categories (
+-- ═══════════════════════════════════════════════════════════
+-- 用户分类（Category）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS categories (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT    NOT NULL,
     sort_order INTEGER NOT NULL DEFAULT 0
 );
 
--- 资源-分类 多对多
-CREATE TABLE resource_categories (
+CREATE TABLE IF NOT EXISTS resource_categories (
     resource_id INTEGER NOT NULL,
     category_id INTEGER NOT NULL,
     PRIMARY KEY (resource_id, category_id),
-    FOREIGN KEY (resource_id) REFERENCES comic_resources(id),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id)      ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_rc_cat ON resource_categories(category_id);
+
+-- ═══════════════════════════════════════════════════════════
+-- 阅读进度（每资源仅最新一条，用于断点续读）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS reading_progress (
+    resource_id     INTEGER PRIMARY KEY,
+    current_page    INTEGER NOT NULL DEFAULT 0,
+    last_read_time  TEXT    NOT NULL,       -- ISO 8601
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id) ON DELETE CASCADE
 );
 
--- 用户设置
-CREATE TABLE settings (
+-- ═══════════════════════════════════════════════════════════
+-- 阅读历史（每次打开追加一条，保留全部时间线）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS read_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    resource_id     INTEGER NOT NULL,
+    last_page_index INTEGER NOT NULL DEFAULT 0,
+    read_date       TEXT    NOT NULL,       -- ISO 8601
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_history_resource ON read_history(resource_id);
+CREATE INDEX IF NOT EXISTS idx_history_date     ON read_history(read_date DESC);
+
+-- ═══════════════════════════════════════════════════════════
+-- 监控目录（本地管理 — 扫描 CBZ/CBR/图片文件夹的来源）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS monitored_directories (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    path    TEXT    NOT NULL UNIQUE,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+-- ═══════════════════════════════════════════════════════════
+-- 在线源配置（哪些源启用、哪些禁用）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS comic_sources (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT    NOT NULL UNIQUE,    -- 'nhentai' | 'ehentai' | ...
+    enabled     INTEGER NOT NULL DEFAULT 0,
+    config_json TEXT                        -- 源特定配置（JSON）
+);
+
+-- ═══════════════════════════════════════════════════════════
+-- 下载任务（Phase 6+ 使用，表先建好避免后续迁移）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS downloads (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    resource_id   INTEGER,                  -- 关联的漫画资源（可为空，下载完成后填充）
+    source_type   TEXT    NOT NULL,
+    source_id     TEXT    NOT NULL,
+    source_url    TEXT    NOT NULL,
+    status        TEXT    NOT NULL DEFAULT 'queued',  -- queued | downloading | paused | done | failed
+    progress      INTEGER NOT NULL DEFAULT 0,         -- 0-100
+    priority      INTEGER NOT NULL DEFAULT 0,
+    created_date  TEXT    NOT NULL,         -- ISO 8601
+    FOREIGN KEY (resource_id) REFERENCES comic_resources(id)
+);
+CREATE INDEX IF NOT EXISTS idx_dl_status ON downloads(status);
+
+-- ═══════════════════════════════════════════════════════════
+-- 用户设置（key-value）
+-- ═══════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
 ```
 
-### 6.1 与初版的关键差异
+### 6.1 Schema 设计说明
 
-| 变更 | 原因 |
+| 表 | 用途 | Phase |
+|----|------|:-----:|
+| `comic_works` | 抽象作品，跨源/跨版本聚合 | 2 |
+| `comic_resources` | 具体资源，书架直接条目 | 2 |
+| `series` | 多卷/多话系列 | 2 |
+| `tags` | 标签/作者全局去重（英文规范名） | 2 |
+| `entity_aliases` | 标签/作者多语言别名 | 2 |
+| `resource_tags` | 资源-标签多对多 | 2 |
+| `categories` | 用户自定义分类 | 2 |
+| `resource_categories` | 资源-分类多对多 | 2 |
+| `reading_progress` | 断点续读 | 2 |
+| `read_history` | 阅读时间线 | 2 |
+| `monitored_directories` | 本地监控目录列表 | 2 |
+| `comic_sources` | 在线源启用/禁用配置 | 2（表） / 6（逻辑） |
+| `downloads` | 下载任务队列 | 2（表） / 6（逻辑） |
+| `settings` | 用户偏好 key-value | 2 |
+
+### 6.2 关键修正
+
+| 修正 | 原因 |
 |------|------|
-| `comic_works` + `comic_resources` 双层 | 区分"是哪本漫画"和"是哪个版本" |
-| `is_bookmarked` 独立于 `is_downloaded` | 收藏≠下载，用户可以只收藏不下载 |
-| `source_url` | 保留在线地址，方便"去原网站看看" |
-| `local_path` | 下载后的本地路径，与 `source_id` 分离 |
-| `resource_tags` 替代 `comic_tags` | 标签关联到 Resource，同一 Work 的不同 Resource 可以有不同标签（如语言标签） |
-
----
+| `comic_resources.category` → `content_type` | 避免与 `categories` 表（用户分类）命名冲突 |
+| `comic_works.author` 移除 | 作者统一走 `tags`（`type='artist'`）+ `resource_tags`，避免双重维护 |
+| `series.author` 移除 | 同上，系列作者通过关联 Resource 的 artist tag 推算 |
+| 外键添加 `ON DELETE CASCADE` | 删除 Resource 时自动清理关联的标签/分类/进度/历史 |
+| 补充 `PRAGMA`（foreign_keys / WAL / busy_timeout） | 外键强制 + 读写并发性能 + 锁等待超时 |
+| 补充缺失索引 | `resource_tags(tag_id)` / `resource_categories(category_id)` / `tags(needs_review)` / `comic_resources(language)` / `comic_resources(content_type)` / `series(title)` / `downloads(status)` |
+| 新增 `monitored_directories` | 本地管理功能需要持久化监控目录列表 |
+| 新增 `comic_sources` | 在线源管理需要持久化启用/禁用状态 |
+| 新增 `downloads` | 下载管理器需要任务队列，表先建好避免后续迁移 |
 
 ## 7. 书架与在线源的交互流程
 
