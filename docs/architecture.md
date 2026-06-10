@@ -49,7 +49,9 @@ nbreader/
 │   │   ├── Abstractions/           # 接口定义 ✅
 │   │   │   ├── IFileSource.cs
 │   │   │   ├── IImageLoader.cs
-│   │   │   └── IArchiveService.cs
+│   │   │   ├── IArchiveService.cs
+│   │   │   ├── IStorageService.cs        ⬅ Phase 2
+│   │   │   └── IComicInfoParser.cs       ⬅ Phase 2
 │   │   ├── Models/                 # 领域模型 ✅
 │   │   │   ├── ComicInfo.cs
 │   │   │   ├── ComicWork.cs         ⬅ Phase 2
@@ -66,7 +68,8 @@ nbreader/
 │   │   │   ├── CbrFileSource.cs
 │   │   │   ├── FileSourceFactory.cs
 │   │   │   ├── SqliteStorageService.cs    ⬅ Phase 2
-│   │   │   └── LibraryScanner.cs          ⬅ Phase 2
+│   │   │   ├── LibraryScanner.cs          ⬅ Phase 2
+│   │   │   └── ComicInfoXmlParser.cs      ⬅ Phase 2
 │   │   └── Extensions/             # 扩展方法（待实现）
 │   │
 │   └── NbReader.Tests/             # 测试项目
@@ -96,8 +99,9 @@ nbreader/
 ├──────────────────────────────────────────────────────────┤
 │            Core Layer (NbReader.Core)                    │
 │  Abstractions: IFileSource │ IStorageService │ IImageLoader
+│               IComicInfoParser
 │  Services:     SqliteStorageService │ LibraryScanner     │
-│               FileSourceFactory │ SkiaImageLoader        │
+│               ComicInfoXmlParser │ FileSourceFactory     │
 │  Models:       ComicWork │ ComicResource │ Series       │
 │               Tag │ Category │ ReadingProgress          │
 ├──────────────────────────────────────────────────────────┤
@@ -230,7 +234,53 @@ public partial class MainWindowViewModel : ViewModelBase
 
 ---
 
-## 5. 数据流
+## 5. 元数据解析（ComicInfo.xml）
+
+> 设计依据：[product-design.md §2.2.1](product-design.md)
+
+### `IComicInfoParser` — ComicInfo.xml 解析器
+
+```csharp
+namespace NbReader.Core.Abstractions;
+
+public interface IComicInfoParser
+{
+    /// <summary>从流解析 ComicInfo.xml</summary>
+    ComicInfoData? Parse(Stream xmlStream);
+
+    /// <summary>生成 ComicInfo.xml 并写入流</summary>
+    void Generate(Stream outputStream, ComicInfoData data);
+}
+
+public class ComicInfoData
+{
+    public string? Title { get; set; }
+    public string? Series { get; set; }
+    public int? Number { get; set; }
+    public string? Summary { get; set; }
+    public string? Writer { get; set; }
+    public string? Penciller { get; set; }
+    public string? Genre { get; set; }
+    public string? LanguageISO { get; set; }
+    public string? Manga { get; set; }
+    public int? PageCount { get; set; }
+    public List<ComicPageInfo>? Pages { get; set; }
+}
+
+public class ComicPageInfo
+{
+    public int Index { get; set; }
+    public string? Type { get; set; }  // FrontCover, InnerCover, BackCover, Story, Deleted, ...
+}
+```
+
+**解析优先级**（导入时）：ComicInfo.xml > 在线源 API > 文件名推测。
+
+**生成时机**：从在线源下载漫画并打包 CBZ 时，自动生成 ComicInfo.xml 嵌入包内。
+
+---
+
+## 6. 数据流
 
 ```mermaid
 sequenceDiagram
@@ -256,7 +306,7 @@ sequenceDiagram
 
 ---
 
-## 6. 关键技术选型
+## 7. 关键技术选型
 
 | 组件 | 选型 | 版本 | 理由 |
 |------|------|------|------|
@@ -271,7 +321,7 @@ sequenceDiagram
 
 ---
 
-## 7. 设计原则（SOLID）
+## 8. 设计原则（SOLID）
 
 | 原则 | 实践 |
 |------|------|
@@ -283,7 +333,7 @@ sequenceDiagram
 
 ---
 
-## 8. 协程与线程模型
+## 9. 协程与线程模型
 
 - **UI 线程：** 所有 Avalonia 属性绑定和 UI 更新
 - **后台线程：** 文件 I/O、图片解码、压缩包解压
@@ -291,7 +341,7 @@ sequenceDiagram
 
 ---
 
-## 9. 事件路由架构
+## 10. 事件路由架构
 
 为避免 Avalonia 控件树中事件被 ScrollViewer 等子控件拦截，采用 **Window 层 Tunnel（隧道）优先拦截** 策略：
 

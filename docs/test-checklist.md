@@ -8,7 +8,8 @@
 
 ## 1. 持久化层
 
-- [ ] 应用首次启动 → 自动创建 `nbreader.db`，含完整 Schema
+- [ ] 应用首次启动 → 自动创建 `nbreader.db`，含完整 Schema（14 张表，含 `comic_sources` / `downloads` / `monitored_directories`）
+- [ ] `comic_resources` 表含 `volume_number` + `chapter_number`（双字段）和 `file_hash`
 - [ ] 关闭并重新打开 → 数据库不重建，数据保留
 - [ ] 设置变更（方向/适应模式）→ 重启后保持
 
@@ -72,7 +73,11 @@
 - [ ] 启动或手动触发扫描 → 自动发现 CBZ/CBR/图片文件夹
 - [ ] 新发现的漫画自动入库，归入"未分类"
 - [ ] 封面自动提取并缓存
-- [ ] 重复文件不重复入库
+- [ ] 重复文件不重复入库（`UNIQUE(source_type, source_id)` + `file_hash` 校验）
+- [ ] CBZ 内含 `ComicInfo.xml` → 优先解析填充 Title/Series/Tags 等字段
+- [ ] `ComicInfo.xml` 标注 `Page Type="FrontCover"` → 提取该页为书架封面
+- [ ] `ComicInfo.xml` 标注 `Page Type="Deleted"` → 阅读器中跳过该页
+- [ ] 无 ComicInfo.xml → 回退文件名推测元数据 + 第一页为封面
 
 ---
 
@@ -88,8 +93,18 @@
 
 ---
 
+## 7. 元数据与文件指纹
+
+- [ ] 导入本地 CBZ → `file_hash` 正确计算（SHA256 前 1MB）
+- [ ] 导入图片文件夹 → `file_hash` 为文件名+大小排序 SHA256
+- [ ] 在线源未下载 → `file_hash` 为 null
+- [ ] ComicInfo.xml 字段映射正确（Title/Series/Number/Genre/Writer/LanguageISO/Manga）
+- [ ] 下载打包 CBZ → 内含自动生成的 ComicInfo.xml
+
+---
+
 ## 测试结果汇总
 
 | 日期 | 通过项 | 失败项 | 备注 |
 |------|--------|--------|------|
-|      | /6     |        |      |
+|      | /7     |        |      |

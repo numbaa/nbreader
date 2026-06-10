@@ -25,12 +25,16 @@
 
 - [ ] 添加 `Microsoft.Data.Sqlite` 包到 `NbReader.Core`
 - [ ] 实现 `SqliteStorageService : IStorageService, IDisposable`
-  - 启动时自动建表（完整 Schema：`comic_works` / `comic_resources` / `tags` / `entity_aliases` / `categories` / `resource_tags` / `resource_categories` / `reading_progress` / `read_history` / `settings`）
+  - 启动时自动建表（完整 Schema：`comic_works` / `comic_resources`（含 `volume_number` + `chapter_number` + `file_hash`）/ `series` / `tags` / `entity_aliases` / `categories` / `resource_tags` / `resource_categories` / `reading_progress` / `read_history` / `monitored_directories` / `comic_sources` / `downloads` / `settings`）
   - 所有写操作参数化 SQL
 - [ ] DI 注册为单例，`Data Source={AppData}/NbReader/nbreader.db`
 
-### Day 3：IStorageService 接口实现
+### Day 3：IStorageService 接口实现 + ComicInfo.xml 解析
 
+- [ ] 实现 `ComicInfoXmlParser : IComicInfoParser`
+  - 从 CBZ 内解析 `ComicInfo.xml` → `ComicInfoData`
+  - 支持 Page Type 标注（`FrontCover` / `Deleted` 等）
+  - 生成 ComicInfo.xml（下载打包时使用）
 - [ ] 设置读写（`GetSetting` / `SetSetting`）
 - [ ] 漫画 CRUD（`AddResource` / `UpdateResource` / `GetLibrary` / `SearchLibrary`）
 - [ ] 进度读写（`GetProgress` / `SaveProgress`）
@@ -87,9 +91,11 @@
 ### Day 4：本地扫描入库
 
 - [ ] `LibraryScanner`：扫描监控目录 → 发现 CBZ/CBR/文件夹
-- [ ] 自动提取封面 → 缓存到 `%APPDATA%/NbReader/covers/`
+- [ ] 导入时按优先级提取元数据：ComicInfo.xml > 文件名推测
+- [ ] 自动提取封面（ComicInfo `FrontCover` 标注 > 第一页）→ 缓存到 `%APPDATA%/NbReader/covers/`
+- [ ] 计算 `file_hash`（CBZ/CBR: SHA256 前 1MB；文件夹: SHA256(文件名+大小)）
 - [ ] 新建 `ComicResource` + 关联 Category "未分类"
-- [ ] 重复文件跳过（`UNIQUE(source_type, source_id)`）
+- [ ] 重复文件跳过（`UNIQUE(source_type, source_id)` + hash 辅助判断）
 
 ### Day 5：端到端验证 + 测试
 

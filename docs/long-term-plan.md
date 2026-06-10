@@ -57,7 +57,7 @@
 
 | 功能 | 优先级 | 状态 |
 |------|:------:|:----:|
-| SQLite 持久化层（ComicWork + ComicResource + Tags + Categories + History） | P0 | ⏳ |
+| SQLite 持久化层（ComicWork + ComicResource + Tags + Categories + History + ComicInfo.xml） | P0 | ⏳ |
 | `LibraryView`（书架网格/列表 + 左侧 Category 栏） | P0 | ⏳ |
 | 本地目录扫描与入库（`LibraryScanner`） | P0 | ⏳ |
 | 阅读进度自动保存与断点续读 | P0 | ⏳ |
