@@ -85,21 +85,26 @@
 | `IsDownloaded` | bool | 是否已下载文件到本地 | true |
 | `LocalPath` | string? | 本地文件路径（下载后填充） | `D:\NbReader\downloads\655539.cbz` |
 | `SeriesId` | int? | 所属系列 | |
-| `VolumeNumber` | int? | 卷/话序号 | |
+| `VolumeNumber` | int? | 单行本卷号（如第 3 卷），与 `ChapterNumber` 互不排斥 | `3` |
+| `ChapterNumber` | int? | 连载话号（如第 42 话），与 `VolumeNumber` 互不排斥 | `42` |
+
+> **`SourceType` 和 `SourceId` 不可变**：这两个字段标识资源的**原始来源**。下载到本地后 `source_type` 仍为 `nhentai`（而非改为 `local`），`source_id` 仍为 `655539`。`is_downloaded` 和 `local_path` 独立记录本地状态。详见 [§2.3](#23-收藏-vs-下载--两个独立维度)。
 
 ### 2.3 收藏 vs 下载 —— 两个独立维度
 
 | 状态 | IsBookmarked | IsDownloaded | 含义 |
 |------|:-----------:|:------------:|------|
-| 仅浏览 | ❌ | ❌ | 在线看过，未加入书架 |
+| 仅浏览 | — | — | 在线看过，未加入书架（**无 DB 条目**，数据来自 API） |
 | **已收藏** | ✅ | ❌ | 在书架中，在线阅读 |
 | **已下载** | ✅ | ✅ | 在书架中，本地离线读 |
 | 仅缓存 | ❌ | ✅ | （罕见）下载了但没加入书架 |
 
+> **关键澄清**："仅浏览"阶段不创建 `comic_resources` 记录。只有用户执行「加入书架」或「下载」操作时，才写入数据库。因此对于所有已入库条目，`is_bookmarked` 恒为 `1`（入库 = 加入书架）。该字段保留用于未来可能出现的"取消收藏但保留本地文件"场景，当前阶段可视为冗余。
+
 **用户故事**：
-1. 在线浏览 → 看上某本 → 点「加入书架」→ `IsBookmarked=true`，封面出现在书架，点击后在线阅读
-2. 书架上某本 → 点「下载」→ 后台下载 + 打包 CBZ → `IsDownloaded=true`，下次打开秒读
-3. 直接点「下载并加入书架」→ 两个标记同时置 true
+1. 在线浏览 → 看上某本 → 点「加入书架」→ 创建 DB 条目，`is_bookmarked=1`，封面出现在书架，点击后在线阅读
+2. 书架上某本 → 点「下载」→ 后台下载 + 打包 CBZ → **同一条目** `is_downloaded=1`, `local_path` 填充，`source_type`/`source_id` **不变**
+3. 直接点「下载并加入书架」→ 创建 DB 条目，两个标记同时置 1
 
 **同一 ComicWork 的多个 Resource 在书架上如何展示？**
 
@@ -143,19 +148,44 @@
 
 ### 2.6 Series — 系列
 
-同一部漫画的多卷/多话，按 `VolumeNumber` 聚合。
+同一部漫画的多卷/多话，通过 `Series` 聚合。
 
 | 属性 | 说明 |
 |------|------|
-| `Title` | 系列名（如 "One Piece"） |
+| `Title` | 系列名（如 "One Piece"、"鬼灭之刃"） |
 | `Description` | 简介 |
-| `Resources` | 该系列下所有 Resource，按 VolumeNumber 排序 |
+| `Resources` | 该系列下所有 Resource，按卷号 → 话号排序 |
 
 > **作者不存储在 Series 上**，统一走 tags 表。
 
 **Series 与 ComicWork 的区别**：
 - `ComicWork`：**同一本**漫画的多个版本（如中文版 vs 日文版）
 - `Series`：**不同本**漫画的前后关系（如第 1 卷 → 第 2 卷 → 第 3 卷）
+
+**卷与话的区分**：漫画发布有"单行本（卷）"和"连载（话）"两种形态，两个字段互不排斥：
+
+```sql
+-- comic_resources 上的两个独立字段
+volume_number   INTEGER,  -- 单行本卷号（如 1, 2, 3），null = 不适用
+chapter_number  INTEGER,  -- 连载话号（如 1, 2, 3），null = 不适用
+```
+
+| 场景 | volume_number | chapter_number | 示例 |
+|------|:---:|:---:|------|
+| 单行本第 3 卷的 CBZ | `3` | `null` | "鬼灭之刃 Vol.3" |
+| 连载第 42 话（在线源） | `null` | `42` | "鬼灭之刃 第42话" |
+| 第 25 话属于第 3 卷 | `3` | `25` | "鬼灭之刃 Vol.3 第25话" |
+| 同人志/单本 | `null` | `null` | "Ero Biiky" |
+
+**Series 内排序**：
+
+```sql
+ORDER BY 
+    COALESCE(volume_number, 99999),
+    COALESCE(chapter_number, 99999)
+```
+
+无卷号的排最后，无话号的排最后。若希望卷和连载分开排列，可改为 `ORDER BY volume_number, chapter_number`（所有卷排在连载前面）。
 
 **设计原则**：
 - Series 是**可选**的。很多同人本就是单本，不强制归属系列
@@ -707,11 +737,17 @@ nhentai 的 API 返回结构和我们的 ComicBook 模型天然契合：
 
 用户在线浏览 → 看上一本漫画 → 点「下载到书架」：
 
-1. 批量下载所有页面图片 → 打包为 CBZ
-2. 元数据写入 SQLite（`ComicBook` 表）
-3. 封面缓存到本地
-4. `IsDownloaded = true`，`SourceType = Local`
-5. 书架中即刻可见，后续完全离线阅读
+**若已加入书架**（已有 `comic_resources` 条目）：
+1. 批量下载所有页面图片 → 打包为 CBZ，写入 `local_path`
+2. 封面缓存到本地，更新 `cover_path`
+3. 设置 `is_downloaded = 1`
+4. `source_type` / `source_id` **保持不变**（仍为 `nhentai` / `655539`），保留来源追溯能力
+5. 后续打开直接读本地 CBZ，离线可用
+
+**若首次下载**（尚无条目）：
+1. 同上打包
+2. 创建 `comic_resources` 条目，`is_bookmarked = 1`, `is_downloaded = 1`
+3. 元数据（标签、语言等）一并写入
 
 ---
 
@@ -757,7 +793,8 @@ CREATE TABLE IF NOT EXISTS comic_resources (
     is_downloaded   INTEGER NOT NULL DEFAULT 0,
     local_path      TEXT,                  -- 下载后的本地文件路径
     series_id       INTEGER,              -- FK → series.id
-    volume_number   INTEGER,              -- 卷/话序号
+    volume_number   INTEGER,              -- 单行本卷号，null 表示不适用
+    chapter_number  INTEGER,              -- 连载话号，null 表示不适用
     FOREIGN KEY (work_id)   REFERENCES comic_works(id),
     FOREIGN KEY (series_id) REFERENCES series(id),
     UNIQUE(source_type, source_id)
@@ -940,6 +977,9 @@ CREATE TABLE IF NOT EXISTS settings (
 | 新增 `monitored_directories` | 本地管理功能需要持久化监控目录列表 |
 | 新增 `comic_sources` | 在线源管理需要持久化启用/禁用状态 |
 | 新增 `downloads` | 下载管理器需要任务队列，表先建好避免后续迁移 |
+| `volume_number` 拆为 `volume_number` + `chapter_number` | 卷（单行本）和话（连载）是两种发布形态，原来的单一字段无法区分；两个字段互不排斥、可同时有值 |
+| 明确 `source_type` / `source_id` 不可变 | 下载到本地后不覆盖原始来源信息，保留追溯能力；`is_downloaded` + `local_path` 独立记录本地状态 |
+| 明确「仅浏览」不创建 DB 条目 | 在线浏览/详情页/在线阅读均不入库，只有「加入书架」或「下载」操作才写 `comic_resources` |
 
 ## 7. 书架与在线源的交互流程
 
@@ -950,10 +990,10 @@ CREATE TABLE IF NOT EXISTS settings (
 2. 选择 nhentai 源 → 看到中文漫画列表（分页）
 3. 翻页浏览，点击感兴趣的漫画 → 进入详情页
 4. 详情页显示封面、标签、页数、简介
-5a. 用户点击「加入书架」→ is_bookmarked=true，封面出现在书架
-    → 下次从书架点击 → 在线阅读（流式）
-5b. 用户点击「下载」→ 后台下载 + 打包 CBZ → is_downloaded=true
-    → 下次打开秒读，离线可用
+5a. 用户点击「加入书架」→ 创建 comic_resources 条目，is_bookmarked=1
+    → 封面出现在书架，点击后在线阅读（流式）
+5b. 用户点击「下载」→ 后台下载 + 打包 CBZ → 同一条目 is_downloaded=1, local_path 填充
+    → source_type 仍为 nhentai（来源可追溯），下次打开秒读本地 CBZ
 6. 如果该漫画在 nhentai 和 e-hentai 都有：
     → 系统自动推测为同一 Work，书架折叠显示"Ero Biiky（2个版本）"
     → 用户可手动确认合并或拆分
@@ -1113,3 +1153,6 @@ public class ComicDetail
 | 在线阅读和本地阅读是否共用 ReaderView？ | ✅ 共用 | `IFileSource` 多态 |
 | 多源支持架构？ | `IComicSource` 插件接口 | 内置 nhentai，社区可扩展更多源 |
 | 系列是否强制？ | ❌ 可选 | 大量同人本是单本 |
+| 卷和话如何区分？ | `volume_number` + `chapter_number` 两个独立可空字段 | 单行本（卷）和连载（话）是不同发布形态，可同时有值（如第 3 卷第 25 话） |
+| 下载后是新建条目还是更新？ | ✅ 原地更新同一条目 | 保留 `source_type`/`source_id` 不变（来源追溯），仅更新 `is_downloaded` + `local_path` |
+| 在线浏览阶段是否入库？ | ❌ 不入库 | 浏览/详情/在线阅读数据来自 API，只有用户主动「加入书架」或「下载」才创建 DB 记录 |
