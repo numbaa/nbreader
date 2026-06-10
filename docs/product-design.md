@@ -75,7 +75,7 @@
 | `SourceType` | string | 来源类型 | `local` / `nhentai` / `ehentai` / ... |
 | `SourceId` | string | 在来源中的唯一标识 | `"655539"` |
 | `SourceUrl` | string? | 在线地址（可重新访问） | `https://nhentai.net/g/655539/` |
-| `CoverPath` | string? | 封面图本地缓存路径 | |
+| `CoverPath` | string? | 封面缩略图本地缓存路径（从 CBZ 提取或在线 API 下载后缓存，用于书架快速展示；不为空时书架直接从缓存读取，无需每次解压 CBZ） | `%LocalAppData%\NbReader\covers\42.jpg` |
 | `PageCount` | int | 总页数 | 174 |
 | `Language` | string? | 语言 | "chinese" |
 | `ContentType` | string? | 内容类型（原 Category，改名避免与用户分类混淆） | "manga" |
@@ -92,6 +92,82 @@
 > **`SourceType` 和 `SourceId` 不可变**：这两个字段标识资源的**原始来源**。下载到本地后 `source_type` 仍为 `nhentai`（而非改为 `local`），`source_id` 仍为 `655539`。`is_downloaded` 和 `local_path` 独立记录本地状态。详见 [§2.3](#23-收藏-vs-下载--两个独立维度)。
 
 > **本地漫画的数据库表示**：对于用户直接导入的本地 CBZ/CBR/图片文件夹，`source_type = 'local'`，`source_id` = 文件/目录的绝对路径，`local_path` 与 `source_id` 相同（文件本身就是来源），`is_downloaded = 1`，`is_bookmarked = 1`（导入即加入书架）。与在线源下载后的条目不同——在线源的 `source_id` 是 gallery ID 而非本地路径。详见 [§2.5.1](#251-文件指纹与路径迁移)。
+
+### 2.2.1 元数据来源与 ComicInfo.xml
+
+`ComicResource` 的字段可以从多个来源填充。导入时按以下优先级提取：
+
+| 优先级 | 来源 | 适用场景 | 说明 |
+|:---:|------|----------|------|
+| 1（最高） | CBZ 内 `ComicInfo.xml` | 本地 CBZ 导入 | ComicRack 标准元数据格式，覆盖所有后续来源 |
+| 2 | 在线源 API | 在线浏览/下载 | nhentai 详情页返回的标签、标题等 |
+| 3（最低） | 文件名推测 | 本地 CBZ 无 ComicInfo.xml | 从文件名中提取标题、作者等 |
+
+#### ComicInfo.xml 字段映射
+
+导入时解析 CBZ 内的 ComicInfo.xml，映射到 NbReader 模型：
+
+| ComicInfo.xml 字段 | NbReader 目标 | 说明 |
+|---------------------|---------------|------|
+| `Title` | `ComicResource.Title` | |
+| `Series` | `Series.Id`（按名称查找或自动创建） | |
+| `Number` | `ComicResource.VolumeNumber` | 单行本卷号 |
+| `Summary` | `ComicWork.Description` | 写入关联 Work 的描述 |
+| `Genre` | `Tags`（分号分隔，逐条入库） | |
+| `LanguageISO` | `ComicResource.Language` | |
+| `Manga` | `ComicResource.ContentType` | `Yes` → `'manga'`；`No` → `'comic'` |
+| `PageCount` | `ComicResource.PageCount` | 以 Zip 内实际图片数为准，ComicInfo 值仅做校验参考 |
+| `Writer` / `Penciller` | `Tags`（`type='artist'`） | 作为作者标签入库 |
+| `Pages/Page[@Type]` | 封面提取 + 阅读器行为 | 见下方 Page Type 说明 |
+| `Count` | — | 忽略，`PageCount` 以实际 Zip 条目数为准 |
+
+#### ComicInfo.xml Page Type（逐页标注）
+
+ComicInfo.xml 支持为每一页标注 `Type`，这是比 `CoverImage` 标签更常见的做法：
+
+| Page Type | 含义 | NbReader 行为 |
+|-----------|------|---------------|
+| `FrontCover` | 封面（实体书最外面那页） | **提取为书架封面**；阅读器中首先展示 |
+| `InnerCover` | 内封（封面翻开后的第一页，通常更素） | 阅读器中正常展示，不提取为书架封面 |
+| `BackCover` | 封底 | 阅读器中正常展示 |
+| `Story` | 正文页（默认值） | 正常展示 |
+| `Advertisement` | 广告页 | 正常展示 |
+| `Editorial` | 编辑寄语 | 正常展示 |
+| `Preview` | 下期预告 | 正常展示 |
+| `Deleted` | 已删除页 | **阅读器中跳过，不展示** |
+| `Other` | 其他 | 正常展示 |
+
+**封面提取优先级**：
+1. `Page Type="FrontCover"` 标注的页 → 提取为 `cover_path` 缓存
+2. `CoverImage` 标签指定的文件名 → 提取该页
+3. 以上均无 → 默认 CBZ 内第一张图片
+
+#### 下载时生成 ComicInfo.xml
+
+从在线源下载漫画并打包为 CBZ 时，**自动生成 ComicInfo.xml 嵌入包内**。这确保：
+
+- CBZ 自描述——脱离 NbReader 后，用 Komga / Kavita / ComicRack 等其他阅读器也能看到完整元数据
+- 用户分享 CBZ 时元数据不丢失
+- 若用户之后将此 CBZ 重新导入 NbReader，ComicInfo.xml 作为最高优先级来源，保证数据一致
+
+生成的 ComicInfo.xml 示例：
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Title>Ero Biiky</Title>
+  <Series>Ero Biiky</Series>
+  <Number>1</Number>
+  <Summary>A story about...</Summary>
+  <Writer>Eco Heeky</Writer>
+  <Genre>big breasts, nakadashi, ahegao</Genre>
+  <LanguageISO>zh</LanguageISO>
+  <Manga>Yes</Manga>
+  <PageCount>174</PageCount>
+  <Count>174</Count>
+</ComicInfo>
+```
 
 ### 2.3 收藏 vs 下载 —— 两个独立维度
 
@@ -790,16 +866,21 @@ nhentai 的 API 返回结构和我们的 ComicBook 模型天然契合：
 用户在线浏览 → 看上一本漫画 → 点「下载到书架」：
 
 **若已加入书架**（已有 `comic_resources` 条目）：
-1. 批量下载所有页面图片 → 打包为 CBZ，写入 `local_path`
-2. 封面缓存到本地，更新 `cover_path`
-3. 设置 `is_downloaded = 1`
-4. `source_type` / `source_id` **保持不变**（仍为 `nhentai` / `655539`），保留来源追溯能力
-5. 后续打开直接读本地 CBZ，离线可用
+1. 批量下载所有页面图片
+2. 生成 `ComicInfo.xml`（含标题、标签、作者、语言等，见 [§2.2.1](#221-元数据来源与-comicinfoxml)）
+3. 将所有页面图片 + `ComicInfo.xml` 打包为 CBZ，写入 `local_path`
+4. 计算 `file_hash` = SHA256（CBZ 前 1MB）
+5. 封面缓存到本地，更新 `cover_path`
+6. 设置 `is_downloaded = 1`
+7. `source_type` / `source_id` **保持不变**（仍为 `nhentai` / `655539`），保留来源追溯能力
+8. 后续打开直接读本地 CBZ，离线可用
 
 **若首次下载**（尚无条目）：
-1. 同上打包
+1. 同上打包 + 生成 ComicInfo.xml
 2. 创建 `comic_resources` 条目，`is_bookmarked = 1`, `is_downloaded = 1`
-3. 元数据（标签、语言等）一并写入
+3. 元数据（标签、语言等）一并写入 DB
+
+> **为什么嵌入 ComicInfo.xml？** 使下载的 CBZ 自描述——脱离 NbReader 后，用户用 Komga、Kavita 等其他阅读器也能看到完整元数据。若日后重新导入 NbReader，ComicInfo.xml 作为最高优先级元数据源，保证数据一致。
 
 ---
 
@@ -1034,6 +1115,7 @@ CREATE TABLE IF NOT EXISTS settings (
 | 明确 `source_type` / `source_id` 不可变 | 下载到本地后不覆盖原始来源信息，保留追溯能力；`is_downloaded` + `local_path` 独立记录本地状态 |
 | 明确「仅浏览」不创建 DB 条目 | 在线浏览/详情页/在线阅读均不入库，只有「加入书架」或「下载」操作才写 `comic_resources` |
 | 新增 `file_hash` | CBZ/CBR 取前 1MB 文件内容的 SHA256，图片文件夹取排序文件名+大小的 SHA256；用于去重和路径迁移重定位 |
+| ComicInfo.xml 作为元数据最高优先级来源 | 导入 CBZ 时优先解析 ComicInfo.xml 填充字段；下载打包时自动生成并嵌入 CBZ，确保自描述 |
 
 ## 7. 书架与在线源的交互流程
 
@@ -1212,3 +1294,5 @@ public class ComicDetail
 | 在线浏览阶段是否入库？ | ❌ 不入库 | 浏览/详情/在线阅读数据来自 API，只有用户主动「加入书架」或「下载」才创建 DB 记录 |
 | 文件路径迁移如何处理？ | hash 重定位 + UI 手动定位 + 扫描自动修复 | 本地文件可能被用户移动；哈希不随路径变化，可在监控目录中自动匹配 |
 | 文件哈希算法如何选？ | CBZ/CBR: SHA256(前 1MB)；文件夹: SHA256(文件名+大小排序) | 全量哈希太慢；前 1MB 碰撞概率极低；文件夹用元数据指纹避免读取所有图片 |
+| 已有 CBZ 内的 ComicInfo.xml 如何处理？ | 导入时优先解析，作为最高优先级元数据源 | ComicInfo.xml 是 ComicRack 标准，覆盖文件名推测；尊重上游元数据 |
+| 下载的 CBZ 是否嵌入 ComicInfo.xml？ | ✅ 自动生成并嵌入 | CBZ 自描述，脱离 NbReader 仍可被其他阅读器识别；重新导入时数据一致 |
