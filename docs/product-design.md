@@ -456,7 +456,7 @@ Series（系列）      → 漫画之间的出版关系
 
 与 `ReadingProgress` 的区别：Progress 是每本漫画的**最新**进度（用于断点续读），History 是**所有**阅读记录的时间线（用于回溯"我昨天看了什么"）。
 
-### 2.3 Tag — 标签
+### 2.10 Tag — 标签
 
 跨源、跨漫画的通用标签系统。
 
@@ -468,7 +468,7 @@ Series（系列）      → 漫画之间的出版关系
 
 > 多语言标签/作者/标题的完整处理方案见 [2.7 多语言与跨源实体映射](#27-多语言与跨源实体映射)。
 
-### 2.4 ComicSource — 漫画源
+### 2.11 ComicSource — 漫画源
 
 | 源 | 类型 | 说明 |
 |----|------|------|
@@ -518,14 +518,14 @@ NbReader
 │   ├── 手动调整优先级
 │   └── 下载进度通知
 │
-├── 🌐 在线浏览（Phase 6）
+├── 🌐 在线浏览（Phase 3）
 │   ├── 浏览在线源（翻页、排序）
 │   ├── 漫画详情页（封面、标签、页数、简介）
 │   ├── 在线阅读（流式加载）
 │   ├── 下载到本地书架
 │   └── 多源搜索
 │
-├── 🔌 多源插件（Phase 7+）
+├── 🔌 多源插件（Phase 4）
 │   ├── IComicSource 插件接口
 │   ├── 内置源：nhentai
 │   ├── 社区可贡献新源
@@ -1054,7 +1054,7 @@ CREATE TABLE IF NOT EXISTS comic_sources (
 );
 
 -- ═══════════════════════════════════════════════════════════
--- 下载任务（Phase 6+ 使用，表先建好避免后续迁移）
+-- 下载任务（Phase 3 使用，表先建好避免后续迁移）
 -- ═══════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS downloads (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1094,8 +1094,8 @@ CREATE TABLE IF NOT EXISTS settings (
 | `reading_progress` | 断点续读 | 2 |
 | `read_history` | 阅读时间线 | 2 |
 | `monitored_directories` | 本地监控目录列表 | 2 |
-| `comic_sources` | 在线源启用/禁用配置 | 2（表） / 6（逻辑） |
-| `downloads` | 下载任务队列 | 2（表） / 6（逻辑） |
+| `comic_sources` | 在线源启用/禁用配置 | 2（表） / 3（逻辑） |
+| `downloads` | 下载任务队列 | 2（表） / 3（逻辑） |
 | `settings` | 用户偏好 key-value | 2 |
 
 ### 6.2 关键修正
@@ -1238,36 +1238,36 @@ public class ComicDetail
 
 ## 10. 实施路线图
 
-### 当前阶段：Phase 5 — 书架基础 + 持久化
+### 当前阶段：Phase 2 — 书架基础 + 持久化
 
 | 步骤 | 内容 |
 |------|------|
-| P5.1 | SQLite 持久化层（完整 Schema，含 categories + history） |
-| P5.2 | `LibraryViewModel` + `LibraryView`（书架 UI + 左侧 Category 栏） |
-| P5.3 | 本地扫描入库（`LibraryScanner`） |
-| P5.4 | 阅读进度自动保存/恢复 + 阅读历史记录 |
-| P5.5 | 基础筛选（语言、分类、Category） |
+| P2.1 | SQLite 持久化层（完整 Schema，含 categories + history） |
+| P2.2 | `LibraryViewModel` + `LibraryView`（书架 UI + 左侧 Category 栏） |
+| P2.3 | 本地扫描入库（`LibraryScanner`） |
+| P2.4 | 阅读进度自动保存/恢复 + 阅读历史记录 |
+| P2.5 | 基础筛选（语言、分类、Category） |
 
-### 下一阶段：Phase 6 — 在线源
-
-| 步骤 | 内容 |
-|------|------|
-| P6.1 | `IComicSource` 接口 + `NhentaiSource` 实现 |
-| P6.2 | `SourceBrowserView`（在线浏览列表 + 翻页） |
-| P6.3 | 漫画详情页 |
-| P6.4 | 在线阅读（流式加载） |
-| P6.5 | 下载到书架（批量下载 + 打包 CBZ） |
-
-### 远期：Phase 7+ — 打磨
+### 下一阶段：Phase 3 — 在线源
 
 | 步骤 | 内容 |
 |------|------|
-| P7.1 | 下载管理器（队列、优先级、通知） |
-| P7.2 | 多源插件架构（IComicSource 社区扩展） |
-| P7.3 | 标签系统完善（EhTagTranslation 导入 + 中文映射） |
-| P7.4 | Series 分组管理 |
-| P7.5 | 元数据编辑 |
-| P7.6 | 深色/浅色主题 |
+| P3.1 | `IComicSource` 接口 + `NhentaiSource` 实现 |
+| P3.2 | `SourceBrowserView`（在线浏览列表 + 翻页） |
+| P3.3 | 漫画详情页 |
+| P3.4 | 在线阅读（流式加载） |
+| P3.5 | 下载到书架（批量下载 + 打包 CBZ） |
+
+### 远期：Phase 4 — 打磨
+
+| 步骤 | 内容 |
+|------|------|
+| P4.1 | 下载管理器（队列、优先级、通知） |
+| P4.2 | 多源插件架构（IComicSource 社区扩展） |
+| P4.3 | 标签系统完善（EhTagTranslation 导入 + 中文映射） |
+| P4.4 | Series 分组管理 |
+| P4.5 | 元数据编辑 |
+| P4.6 | 深色/浅色主题 |
 
 ---
 
