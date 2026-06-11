@@ -8,7 +8,7 @@
         x:Class="NbReader.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         DragDrop.AllowDrop="True"
-        Title="{Binding Reader.ComicName, StringFormat='NbReader - {0}', FallbackValue='NbReader'}"
+        Title="{Binding WindowTitle}"
         MinWidth="640" MinHeight="480">
 
     <Design.DataContext>
@@ -16,7 +16,7 @@
     </Design.DataContext>
 
     <Grid RowDefinitions="Auto,*,Auto">
-        <!-- 顶部工具栏 -->
+        <!-- ═══ 顶部工具栏 ═══ -->
         <Border Grid.Row="0" Padding="4"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
                 BorderThickness="0,0,0,1">
@@ -28,28 +28,60 @@
                 <Separator Width="1" Height="20" />
                 <Button Content="{Binding Reader.ReadingDirectionText}"
                         Command="{Binding Reader.CycleReadingDirectionCommand}"
-                        ToolTip.Tip="切换阅读方向 (D)" />
+                        ToolTip.Tip="切换阅读方向 (D)"
+                        IsVisible="{Binding IsReaderActive}" />
                 <Button Content="{Binding Reader.ReadingModeText}"
                         Command="{Binding Reader.CycleReadingModeCommand}"
-                        ToolTip.Tip="切换阅读模式 (M)" />
+                        ToolTip.Tip="切换阅读模式 (M)"
+                        IsVisible="{Binding IsReaderActive}" />
                 <Button Content="{Binding Reader.FitModeText}"
                         Command="{Binding Reader.CycleFitModeCommand}"
-                        ToolTip.Tip="切换适应模式 (F)" />
-                <Separator Width="1" Height="20" />
+                        ToolTip.Tip="切换适应模式 (F)"
+                        IsVisible="{Binding IsReaderActive}" />
+                <Separator Width="1" Height="20" IsVisible="{Binding IsReaderActive}" />
                 <TextBlock Text="{Binding Reader.ComicName}"
                            VerticalAlignment="Center"
-                           FontWeight="Bold" />
+                           FontWeight="Bold"
+                           IsVisible="{Binding IsReaderActive}" />
             </StackPanel>
         </Border>
 
-        <!-- 中央阅读区域 — 使用 ViewLocator 自动匹配 ReaderView -->
-        <Grid Grid.Row="1">
-            <ContentControl Content="{Binding CurrentView}"
+        <!-- ═══ 中央区域：导航栏 + 内容区 ═══ -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+            <!-- 左侧导航栏 -->
+            <Border Grid.Column="0" Padding="4,8"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="0,0,1,0"
+                    MinWidth="120" MaxWidth="200">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="导航" FontWeight="Bold" FontSize="13"
+                               Margin="8,0,0,8" />
+                    <Button Content="📚 书架"
+                            Command="{Binding NavigateToLibraryCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left" />
+                    <Button Content="🕐 历史"
+                            Command="{Binding NavigateToHistoryCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left" />
+                    <Separator Margin="4,8" />
+                    <TextBlock Text="快捷键" FontSize="11" Foreground="Gray"
+                               Margin="8,0,0,4" />
+                    <TextBlock Text="Ctrl+N  书架" FontSize="11" Foreground="Gray"
+                               Margin="8,0,0,2" />
+                    <TextBlock Text="Ctrl+H  历史" FontSize="11" Foreground="Gray"
+                               Margin="8,0,0,2" />
+                </StackPanel>
+            </Border>
+
+            <!-- 内容区 -->
+            <ContentControl Grid.Column="1"
+                            Content="{Binding CurrentView}"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch" />
 
             <!-- 加载状态覆盖层 -->
-            <Border IsVisible="{Binding Reader.IsLoading}"
+            <Border Grid.Column="1" IsVisible="{Binding Reader.IsLoading}"
                     Background="#88000000"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch">
@@ -66,7 +98,7 @@
             </Border>
         </Grid>
 
-        <!-- 底部状态栏 -->
+        <!-- ═══ 底部状态栏 ═══ -->
         <Border Grid.Row="2" Padding="8,4"
                 Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
             <StackPanel Orientation="Horizontal" Spacing="16">

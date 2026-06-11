@@ -197,6 +197,16 @@ public partial class MainWindow : Window
                 catch (Exception ex) { LogKeyError("F", ex); }
                 break;
 
+            case Key.N when e.KeyModifiers == KeyModifiers.Control:
+                mwvm.NavigateToLibraryCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.H when e.KeyModifiers == KeyModifiers.Control:
+                mwvm.NavigateToHistoryCommand.Execute(null);
+                e.Handled = true;
+                break;
+
             case Key.F11:
                 WindowState = WindowState == WindowState.FullScreen
                     ? WindowState.Normal

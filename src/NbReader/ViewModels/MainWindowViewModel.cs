@@ -1,15 +1,28 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NbReader.Core.Abstractions;
 using NbReader.Core.Services;
 using SharpCompress.Common;
 
 namespace NbReader.ViewModels;
 
 /// <summary>
+/// 导航目标视图。
+/// </summary>
+public enum NavTarget
+{
+    Library,
+    History,
+    Reader
+}
+
+/// <summary>
 /// 主窗口视图模型：管理全局导航和应用状态。
 /// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private readonly IStorageService _storage;
+
     /// <summary>
     /// 当前激活的视图模型。
     /// </summary>
@@ -17,14 +30,90 @@ public partial class MainWindowViewModel : ViewModelBase
     private ViewModelBase _currentView;
 
     /// <summary>
+    /// 当前选中的导航项。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsReaderActive))]
+    [NotifyPropertyChangedFor(nameof(WindowTitle))]
+    private NavTarget _selectedNav = NavTarget.Reader;
+
+    /// <summary>
+    /// 是否在阅读器视图（用于控制工具栏按钮可见性）。
+    /// </summary>
+    public bool IsReaderActive => SelectedNav == NavTarget.Reader;
+
+    /// <summary>
+    /// 窗口标题：阅读器显示漫画名，书架/历史显示导航名。
+    /// </summary>
+    public string WindowTitle
+    {
+        get
+        {
+            if (SelectedNav == NavTarget.Reader && !string.IsNullOrEmpty(Reader.ComicName))
+                return $"NbReader - {Reader.ComicName}";
+
+            return SelectedNav switch
+            {
+                NavTarget.Library => "NbReader - 书架",
+                NavTarget.History => "NbReader - 阅读历史",
+                _ => "NbReader"
+            };
+        }
+    }
+
+    /// <summary>
     /// 阅读器视图模型（常驻）。
     /// </summary>
     public ReaderViewModel Reader { get; }
 
-    public MainWindowViewModel(ReaderViewModel reader)
+    /// <summary>
+    /// 书架视图模型（常驻）。
+    /// </summary>
+    public LibraryViewModel Library { get; }
+
+    /// <summary>
+    /// 历史视图模型（常驻）。
+    /// </summary>
+    public HistoryViewModel History { get; }
+
+    public MainWindowViewModel(ReaderViewModel reader, IStorageService storage)
     {
+        _storage = storage;
         Reader = reader;
+        Library = new LibraryViewModel(storage, NavigateToReader);
+        History = new HistoryViewModel(storage, NavigateToReader);
         CurrentView = reader;
+    }
+
+    /// <summary>
+    /// 导航到书架。
+    /// </summary>
+    [RelayCommand]
+    private void NavigateToLibrary()
+    {
+        SelectedNav = NavTarget.Library;
+        Library.Refresh();
+        CurrentView = Library;
+    }
+
+    /// <summary>
+    /// 导航到历史。
+    /// </summary>
+    [RelayCommand]
+    private void NavigateToHistory()
+    {
+        SelectedNav = NavTarget.History;
+        History.Refresh();
+        CurrentView = History;
+    }
+
+    /// <summary>
+    /// 由子 ViewModel 回调，用于从书架/历史打开漫画。
+    /// </summary>
+    private void NavigateToReader(string path)
+    {
+        SelectedNav = NavTarget.Reader;
+        _ = OpenFileAsync(path);
     }
 
     /// <summary>
@@ -45,6 +134,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             await Reader.LoadFileSourceAsync(fileSource);
+            SelectedNav = NavTarget.Reader;
             CurrentView = Reader;
         }
         catch (DirectoryNotFoundException)
@@ -76,6 +166,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task LoadDemoAsync()
     {
         await Reader.LoadDemoImageAsync();
+        SelectedNav = NavTarget.Reader;
         CurrentView = Reader;
     }
 }

@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NbReader.ViewModels"
+             xmlns:models="using:NbReader.Core.Models"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="NbReader.Views.HistoryView"
+             x:DataType="vm:HistoryViewModel"
+             x:Name="Root">
+
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Padding="12,8"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="🕐 阅读历史" FontSize="18" FontWeight="Bold"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="清除全部历史"
+                        Command="{Binding ClearAllHistoryCommand}" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:HistoryGroup">
+                        <StackPanel Margin="0,0,0,8">
+                            <TextBlock Text="{Binding DateLabel}"
+                                       FontSize="14" FontWeight="Bold"
+                                       Foreground="{DynamicResource SystemAccentColor}"
+                                       Margin="16,8,0,4" />
+
+                            <ItemsControl ItemsSource="{Binding Entries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:CompileBindings="False">
+                                        <Border Margin="8,2" Padding="8,6"
+                                                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                                                CornerRadius="6">
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                <Border Grid.Column="0" Width="36" Height="48"
+                                                        Background="#FF2D2D3F" CornerRadius="3"
+                                                        Margin="0,0,8,0">
+                                                    <TextBlock Text="📖" FontSize="16"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                    <TextBlock Text="{Binding ComicTitle}"
+                                                               FontWeight="Bold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock FontSize="11" Foreground="Gray">
+                                                        <Run Text="第 " />
+                                                        <Run Text="{Binding LastPageIndex}" />
+                                                        <Run Text=" 页 / 共 " />
+                                                        <Run Text="{Binding TotalPages}" />
+                                                        <Run Text=" 页" />
+                                                    </TextBlock>
+                                                </StackPanel>
+
+                                                <TextBlock Grid.Column="2" FontSize="11" Foreground="Gray"
+                                                           VerticalAlignment="Center" Margin="12,0" />
+
+                                                <Button Grid.Column="3" Content="✕" Width="28" Height="28"
+                                                        Command="{Binding DataContext.DeleteEntryCommand, ElementName=Root}"
+                                                        CommandParameter="{Binding .}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+
+</UserControl>

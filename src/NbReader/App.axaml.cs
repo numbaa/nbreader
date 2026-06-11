@@ -62,7 +62,7 @@ public partial class App : Application
         services.AddSingleton<IComicInfoParser, ComicInfoXmlParser>();
 
         // ViewModels — 单例（整个应用生命周期内保持状态）
-        services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<ReaderViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
     }
 }
