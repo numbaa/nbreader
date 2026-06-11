@@ -23,29 +23,29 @@
 
 ### Day 1-2：SQLite 基础设施
 
-- [ ] 添加 `Microsoft.Data.Sqlite` 包到 `NbReader.Core`
-- [ ] 实现 `SqliteStorageService : IStorageService, IDisposable`
+- [x] 添加 `Microsoft.Data.Sqlite` 包到 `NbReader.Core`
+- [x] 实现 `SqliteStorageService : IStorageService, IDisposable`
   - 启动时自动建表（完整 Schema：`comic_works` / `comic_resources`（含 `volume_number` + `chapter_number` + `file_hash`）/ `series` / `tags` / `entity_aliases` / `categories` / `resource_tags` / `resource_categories` / `reading_progress` / `read_history` / `monitored_directories` / `comic_sources` / `downloads` / `settings`）
   - 所有写操作参数化 SQL
-- [ ] DI 注册为单例，`Data Source={AppData}/NbReader/nbreader.db`
+- [x] DI 注册为单例，`Data Source={AppData}/NbReader/nbreader.db`
 
 ### Day 3：IStorageService 接口实现 + ComicInfo.xml 解析
 
-- [ ] 实现 `ComicInfoXmlParser : IComicInfoParser`
+- [x] 实现 `ComicInfoXmlParser : IComicInfoParser`
   - 从 CBZ 内解析 `ComicInfo.xml` → `ComicInfoData`
   - 支持 Page Type 标注（`FrontCover` / `Deleted` 等）
   - 生成 ComicInfo.xml（下载打包时使用）
-- [ ] 设置读写（`GetSetting` / `SetSetting`）
-- [ ] 漫画 CRUD（`AddResource` / `UpdateResource` / `GetLibrary` / `SearchLibrary`）
-- [ ] 进度读写（`GetProgress` / `SaveProgress`）
-- [ ] 历史追加（`AddHistory` / `GetHistory`）
-- [ ] 分类管理（`GetCategories` / `CreateCategory` / `DeleteCategory` / `ReorderCategories`）
-- [ ] 分类与漫画关联（`AddToCategory` / `RemoveFromCategory`）
+- [x] 设置读写（`GetSetting` / `SetSetting`）
+- [x] 漫画 CRUD（`AddResource` / `UpdateResource` / `GetLibrary` / `SearchLibrary`）
+- [x] 进度读写（`GetProgress` / `SaveProgress`）
+- [x] 历史追加（`AddHistory` / `GetHistory`）
+- [x] 分类管理（`GetCategories` / `CreateCategory` / `DeleteCategory` / `ReorderCategories`）
+- [x] 分类与漫画关联（`AddToCategory` / `RemoveFromCategory`）
 
 ### Day 4-5：单元测试
 
-- [ ] `SqliteStorageServiceTests` — 使用 `Data Source=:memory:` 覆盖所有 CRUD 操作
-- [ ] 建表幂等、参数化 SQL 防注入、并发安全
+- [x] `SqliteStorageServiceTests` — 使用 `Data Source=:memory:` 覆盖所有 CRUD 操作
+- [x] 建表幂等、参数化 SQL 防注入、并发安全
 
 ---
 

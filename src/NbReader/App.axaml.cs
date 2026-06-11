@@ -59,6 +59,7 @@ public partial class App : Application
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         var storage = new SqliteStorageService(dbPath);
         services.AddSingleton<IStorageService>(storage);
+        services.AddSingleton<IComicInfoParser, ComicInfoXmlParser>();
 
         // ViewModels — 单例（整个应用生命周期内保持状态）
         services.AddSingleton<MainWindowViewModel>();
