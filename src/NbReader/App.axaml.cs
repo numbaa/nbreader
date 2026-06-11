@@ -50,6 +50,16 @@ public partial class App : Application
         // Core 服务
         services.AddSingleton<IImageLoader, SkiaImageLoader>();
 
+        // 持久化 — 单例，数据文件在 %APPDATA%/NbReader/nbreader.db
+        var dbPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NbReader",
+            "nbreader.db");
+        // 确保目录存在
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+        var storage = new SqliteStorageService(dbPath);
+        services.AddSingleton<IStorageService>(storage);
+
         // ViewModels — 单例（整个应用生命周期内保持状态）
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<ReaderViewModel>();
