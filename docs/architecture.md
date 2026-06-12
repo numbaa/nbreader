@@ -27,15 +27,16 @@ nbreader/
 │   │   ├── Views/                  # 视图（AXAML + code-behind）
 │   │   │   ├── MainWindow.axaml / .axaml.cs
 │   │   │   ├── ReaderView.axaml / .axaml.cs
-│   │   │   ├── LibraryView.axaml / .axaml.cs      ⬅ Phase 2
-│   │   │   ├── HistoryView.axaml / .axaml.cs      ⬅ Phase 2
+│   │   │   ├── LibraryView.axaml / .axaml.cs      ✅ Phase 2
+│   │   │   ├── HistoryView.axaml / .axaml.cs      ✅ Phase 2
+│   │   │   ├── PromptDialog.cs                    ✅ Phase 2   # 通用输入弹窗
 │   │   │   └── SourceBrowserView.axaml / .axaml.cs ⬅ Phase 3
 │   │   ├── ViewModels/             # 视图模型
 │   │   │   ├── ViewModelBase.cs
 │   │   │   ├── MainWindowViewModel.cs
 │   │   │   ├── ReaderViewModel.cs
-│   │   │   ├── LibraryViewModel.cs       ⬅ Phase 2
-│   │   │   ├── HistoryViewModel.cs       ⬅ Phase 2
+│   │   │   ├── LibraryViewModel.cs       ✅ Phase 2
+│   │   │   ├── HistoryViewModel.cs       ✅ Phase 2
 │   │   │   └── SourceBrowserViewModel.cs ⬅ Phase 3
 │   │   ├── Converters/             # 值转换器 ✅
 │   │   │   └── ImageConverter.cs   # IImage → Avalonia Bitmap
@@ -50,16 +51,22 @@ nbreader/
 │   │   │   ├── IFileSource.cs
 │   │   │   ├── IImageLoader.cs
 │   │   │   ├── IArchiveService.cs
-│   │   │   ├── IStorageService.cs        ⬅ Phase 2
-│   │   │   └── IComicInfoParser.cs       ⬅ Phase 2
+│   │   │   ├── IStorageService.cs        ✅ Phase 2
+│   │   │   └── IComicInfoParser.cs       ✅ Phase 2
 │   │   ├── Models/                 # 领域模型 ✅
 │   │   │   ├── ComicInfo.cs
-│   │   │   ├── ComicWork.cs         ⬅ Phase 2
-│   │   │   ├── ComicResource.cs     ⬅ Phase 2
+│   │   │   ├── ComicWork.cs         ✅ Phase 2
+│   │   │   ├── ComicResource.cs     ✅ Phase 2
+│   │   │   ├── ComicInfoData.cs     ✅ Phase 2
+│   │   │   ├── ComicInfoPage.cs     ✅ Phase 2
 │   │   │   ├── PageInfo.cs
 │   │   │   ├── ReadingProgress.cs
-│   │   │   ├── Tag.cs               ⬅ Phase 2
-│   │   │   └── Category.cs          ⬅ Phase 2
+│   │   │   ├── ReadHistoryEntry.cs  ✅ Phase 2
+│   │   │   ├── Tag.cs               ✅ Phase 2
+│   │   │   ├── Category.cs          ✅ Phase 2
+│   │   │   ├── Series.cs            ✅ Phase 2
+│   │   │   ├── EntityAlias.cs       ✅ Phase 2
+│   │   │   └── MonitoredDirectory.cs ✅ Phase 2
 │   │   ├── Services/               # 核心服务实现
 │   │   │   ├── SkiaImage.cs
 │   │   │   ├── SkiaImageLoader.cs
@@ -67,9 +74,9 @@ nbreader/
 │   │   │   ├── CbzFileSource.cs
 │   │   │   ├── CbrFileSource.cs
 │   │   │   ├── FileSourceFactory.cs
-│   │   │   ├── SqliteStorageService.cs    ⬅ Phase 2
-│   │   │   ├── LibraryScanner.cs          ⬅ Phase 2
-│   │   │   └── ComicInfoXmlParser.cs      ⬅ Phase 2
+│   │   │   ├── SqliteStorageService.cs    ✅ Phase 2
+│   │   │   ├── ComicInfoXmlParser.cs      ✅ Phase 2
+│   │   │   └── LibraryScanner.cs          ⬅ Phase 2
 │   │   └── Extensions/             # 扩展方法（待实现）
 │   │
 │   └── NbReader.Tests/             # 测试项目
@@ -81,7 +88,8 @@ nbreader/
 │       │   ├── CbzFileSourceTests.cs
 │       │   ├── CbrFileSourceTests.cs
 │       │   ├── FileSourceFactoryTests.cs
-│       │   └── SqliteStorageServiceTests.cs  ⬅ Phase 2
+│       │   ├── ComicInfoXmlParserTests.cs    ✅ Phase 2
+│       │   └── SqliteStorageServiceTests.cs  ✅ Phase 2
 │       └── UI/                     # UI 逻辑测试
 │           ├── ReaderViewModelTests.cs
 │           └── LibraryViewModelTests.cs      ⬅ Phase 2

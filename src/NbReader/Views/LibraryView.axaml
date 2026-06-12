@@ -38,7 +38,7 @@
                                 HorizontalContentAlignment="Left"
                                 Command="{Binding SelectCategoryCommand}"
                                 CommandParameter="{x:Null}">
-                            <TextBlock Text="{Binding TotalCount, StringFormat='📁 全部 ({0})'}" />
+                            <TextBlock Text="{Binding AllBooksCount, StringFormat='📁 全部 ({0})'}" />
                         </Button>
 
                         <ItemsControl ItemsSource="{Binding Categories}">
@@ -48,6 +48,21 @@
                                             HorizontalContentAlignment="Left"
                                             Command="{Binding DataContext.SelectCategoryCommand, ElementName=Root}"
                                             CommandParameter="{Binding .}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="✏️ 重命名" Click="OnRenameCategoryClick" />
+                                                <MenuItem Header="🗑 删除"
+                                                          Command="{Binding DataContext.DeleteCategoryCommand, ElementName=Root}"
+                                                          CommandParameter="{Binding .}" />
+                                                <Separator />
+                                                <MenuItem Header="⬆ 上移"
+                                                          Command="{Binding DataContext.MoveCategoryUpCommand, ElementName=Root}"
+                                                          CommandParameter="{Binding .}" />
+                                                <MenuItem Header="⬇ 下移"
+                                                          Command="{Binding DataContext.MoveCategoryDownCommand, ElementName=Root}"
+                                                          CommandParameter="{Binding .}" />
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="📁" />
                                             <TextBlock Text="{Binding Name}" />
@@ -83,7 +98,19 @@
                         <DataTemplate x:DataType="models:ComicResource">
                             <Border Width="160" Height="230" Margin="8"
                                     Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                                    CornerRadius="6">
+                                    CornerRadius="6"
+                                    DoubleTapped="OnComicCardDoubleTapped"
+                                    PointerPressed="OnComicCardPointerPressed">
+                                <Border.ContextMenu>
+                                    <ContextMenu Opened="OnComicCardContextMenuOpened">
+                                        <MenuItem x:Name="MenuRead" Header="📖 阅读" />
+                                        <MenuItem x:Name="MenuRemoveFromCat" Header="📁 从本分类移除" />
+                                        <Separator />
+                                        <MenuItem x:Name="MoveToCategoryMenu" Header="📁 移至分类 →" />
+                                        <Separator />
+                                        <MenuItem x:Name="MenuRemove" Header="🗑 从书架移除" />
+                                    </ContextMenu>
+                                </Border.ContextMenu>
                                 <Grid RowDefinitions="*,Auto,Auto" Margin="4">
                                     <Border Grid.Row="0" Background="#FF2D2D3F" CornerRadius="4">
                                         <TextBlock Text="📖" FontSize="48"

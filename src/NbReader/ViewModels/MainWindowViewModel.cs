@@ -22,6 +22,7 @@ public enum NavTarget
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IStorageService _storage;
+    private readonly IComicInfoParser _comicInfoParser;
 
     /// <summary>
     /// 当前激活的视图模型。
@@ -34,13 +35,25 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReaderActive))]
+    [NotifyPropertyChangedFor(nameof(IsLibraryActive))]
+    [NotifyPropertyChangedFor(nameof(IsHistoryActive))]
     [NotifyPropertyChangedFor(nameof(WindowTitle))]
     private NavTarget _selectedNav = NavTarget.Reader;
 
     /// <summary>
-    /// 是否在阅读器视图（用于控制工具栏按钮可见性）。
+    /// 是否在阅读器视图。
     /// </summary>
     public bool IsReaderActive => SelectedNav == NavTarget.Reader;
+
+    /// <summary>
+    /// 是否在书架视图。
+    /// </summary>
+    public bool IsLibraryActive => SelectedNav == NavTarget.Library;
+
+    /// <summary>
+    /// 是否在历史视图。
+    /// </summary>
+    public bool IsHistoryActive => SelectedNav == NavTarget.History;
 
     /// <summary>
     /// 窗口标题：阅读器显示漫画名，书架/历史显示导航名。
@@ -76,13 +89,23 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public HistoryViewModel History { get; }
 
-    public MainWindowViewModel(ReaderViewModel reader, IStorageService storage)
+    public MainWindowViewModel(ReaderViewModel reader, IStorageService storage, IComicInfoParser comicInfoParser)
     {
         _storage = storage;
+        _comicInfoParser = comicInfoParser;
         Reader = reader;
         Library = new LibraryViewModel(storage, NavigateToReader);
         History = new HistoryViewModel(storage, NavigateToReader);
         CurrentView = reader;
+    }
+
+    /// <summary>
+    /// 导航到阅读器（回到正在阅读的漫画）。
+    /// </summary>
+    [RelayCommand]
+    private void NavigateToReader()
+    {
+        SelectedNav = NavTarget.Reader;
     }
 
     /// <summary>
@@ -136,6 +159,9 @@ public partial class MainWindowViewModel : ViewModelBase
             await Reader.LoadFileSourceAsync(fileSource);
             SelectedNav = NavTarget.Reader;
             CurrentView = Reader;
+
+            // 自动加入书架
+            RegisterInLibrary(path, fileSource.PageCount);
         }
         catch (DirectoryNotFoundException)
         {
@@ -156,6 +182,59 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             Reader.StatusText = $"❌ 打开失败: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// 将打开的文件自动注册到书架（若尚未入库），并记录阅读历史。
+    /// </summary>
+    private void RegisterInLibrary(string path, int pageCount)
+    {
+        try
+        {
+            var existing = _storage.GetResourceBySource("local", path);
+            int resourceId;
+
+            if (existing is not null)
+            {
+                existing.LastReadDate = DateTime.UtcNow.ToString("O");
+                _storage.UpdateResource(existing);
+                resourceId = existing.Id;
+            }
+            else
+            {
+                var title = Path.GetFileNameWithoutExtension(path);
+
+                if (path.EndsWith(".cbz", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    var comicInfo = _comicInfoParser.ParseFromCbz(path);
+                    if (comicInfo is not null)
+                        title = comicInfo.Title ?? title;
+                }
+
+                var resource = new NbReader.Core.Models.ComicResource
+                {
+                    Title = title,
+                    SourceType = "local",
+                    SourceId = path,
+                    LocalPath = path,
+                    PageCount = pageCount,
+                    AddedDate = DateTime.UtcNow.ToString("O"),
+                    LastReadDate = DateTime.UtcNow.ToString("O"),
+                    IsBookmarked = true,
+                    IsDownloaded = true
+                };
+
+                resourceId = _storage.AddResource(resource);
+            }
+
+            // 记录阅读历史
+            _storage.AddHistory(resourceId, 0);
+        }
+        catch
+        {
+            // 入库失败不影响阅读
         }
     }
 

@@ -36,7 +36,8 @@
                                     <DataTemplate x:CompileBindings="False">
                                         <Border Margin="8,2" Padding="8,6"
                                                 Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                                                CornerRadius="6">
+                                                CornerRadius="6"
+                                                PointerPressed="OnHistoryEntryPressed">
                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                 <Border Grid.Column="0" Width="36" Height="48"
                                                         Background="#FF2D2D3F" CornerRadius="3"

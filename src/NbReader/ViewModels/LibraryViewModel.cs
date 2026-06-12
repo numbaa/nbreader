@@ -52,6 +52,10 @@ public partial class LibraryViewModel : ViewModelBase
     [ObservableProperty]
     private int _totalCount;
 
+    /// <summary>全部漫画总数（不受筛选影响）</summary>
+    [ObservableProperty]
+    private int _allBooksCount;
+
     /// <summary>空状态提示</summary>
     [ObservableProperty]
     private string _emptyMessage = "拖放漫画文件或添加监控目录开始阅读";
@@ -81,6 +85,7 @@ public partial class LibraryViewModel : ViewModelBase
     public void Refresh()
     {
         LoadCategories();
+        RefreshAllCount();
         LoadBooks();
     }
 
@@ -131,6 +136,15 @@ public partial class LibraryViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// 刷新全部计数（不受筛选影响）。
+    /// </summary>
+    private void RefreshAllCount()
+    {
+        var all = _storage.GetLibrary(new LibraryQuery());
+        AllBooksCount = all.Count;
+    }
+
+    /// <summary>
     /// 选中分类筛选。
     /// </summary>
     [RelayCommand]
@@ -166,14 +180,42 @@ public partial class LibraryViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 重命名分类。
+    /// 重命名分类（由 View 层弹窗获取新名称后调用）。
+    /// </summary>
+    public void RenameCategory(int categoryId, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        _storage.RenameCategory(categoryId, newName.Trim());
+        LoadCategories();
+    }
+
+    /// <summary>
+    /// 上移分类。
     /// </summary>
     [RelayCommand]
-    private void RenameCategory(Category category)
+    private void MoveCategoryUp(Category category)
     {
-        // 简化实现：追加时间戳。后续可改为弹出输入框。
-        var newName = $"{category.Name}_重命名";
-        _storage.RenameCategory(category.Id, newName);
+        var cats = _storage.GetCategories();
+        var index = cats.FindIndex(c => c.Id == category.Id);
+        if (index <= 0) return;
+
+        (cats[index - 1], cats[index]) = (cats[index], cats[index - 1]);
+        _storage.ReorderCategories(cats.Select(c => c.Id).ToList());
+        LoadCategories();
+    }
+
+    /// <summary>
+    /// 下移分类。
+    /// </summary>
+    [RelayCommand]
+    private void MoveCategoryDown(Category category)
+    {
+        var cats = _storage.GetCategories();
+        var index = cats.FindIndex(c => c.Id == category.Id);
+        if (index < 0 || index >= cats.Count - 1) return;
+
+        (cats[index + 1], cats[index]) = (cats[index], cats[index + 1]);
+        _storage.ReorderCategories(cats.Select(c => c.Id).ToList());
         LoadCategories();
     }
 
@@ -197,6 +239,29 @@ public partial class LibraryViewModel : ViewModelBase
         _storage.DeleteResource(resource.Id);
         Books.Remove(resource);
         TotalCount = Books.Count;
+        LoadCategories();
+        RefreshAllCount();
+    }
+
+    /// <summary>
+    /// 将漫画移至指定分类（由右键菜单调用）。
+    /// </summary>
+    public void MoveToCategory(ComicResource resource, Category category)
+    {
+        _storage.AddToCategory(resource.Id, category.Id);
+        LoadCategories();
+        RefreshAllCount();
+    }
+
+    /// <summary>
+    /// 从当前选中的分类中移除漫画（不删除漫画本身）。
+    /// </summary>
+    public void RemoveFromCurrentCategory(ComicResource resource)
+    {
+        if (SelectedCategory is null) return;
+        _storage.RemoveFromCategory(resource.Id, SelectedCategory.Id);
+        LoadCategories();
+        LoadBooks();
     }
 
     /// <summary>

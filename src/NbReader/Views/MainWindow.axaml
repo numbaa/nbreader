@@ -64,6 +64,11 @@
                             Command="{Binding NavigateToHistoryCommand}"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Left" />
+                    <Button Content="📖 正在阅读"
+                            Command="{Binding NavigateToReaderCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            IsVisible="{Binding IsReaderActive, Converter={x:Static BoolConverters.Not}}" />
                     <Separator Margin="4,8" />
                     <TextBlock Text="快捷键" FontSize="11" Foreground="Gray"
                                Margin="8,0,0,4" />
@@ -74,11 +79,15 @@
                 </StackPanel>
             </Border>
 
-            <!-- 内容区 -->
-            <ContentControl Grid.Column="1"
-                            Content="{Binding CurrentView}"
-                            HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch" />
+            <!-- 内容区：三个视图常驻，用可见性切换 -->
+            <Grid Grid.Column="1">
+                <ContentControl Content="{Binding Reader}"
+                                IsVisible="{Binding IsReaderActive}" />
+                <ContentControl Content="{Binding Library}"
+                                IsVisible="{Binding IsLibraryActive}" />
+                <ContentControl Content="{Binding History}"
+                                IsVisible="{Binding IsHistoryActive}" />
+            </Grid>
 
             <!-- 加载状态覆盖层 -->
             <Border Grid.Column="1" IsVisible="{Binding Reader.IsLoading}"
