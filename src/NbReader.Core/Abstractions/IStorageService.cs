@@ -138,6 +138,14 @@ public interface IStorageService
 
     /// <summary>获取全部标签（按类型和名称排序）</summary>
     List<Tag> GetAllTags();
+
+    // ═══════ 筛选选项 ═══════
+
+    /// <summary>获取书架中所有不重复的语言</summary>
+    List<string> GetDistinctLanguages();
+
+    /// <summary>获取书架中所有不重复的内容类型</summary>
+    List<string> GetDistinctContentTypes();
 }
 
 /// <summary>

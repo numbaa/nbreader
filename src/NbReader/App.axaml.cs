@@ -61,6 +61,9 @@ public partial class App : Application
         services.AddSingleton<IStorageService>(storage);
         services.AddSingleton<IComicInfoParser, ComicInfoXmlParser>();
 
+        // 本地扫描服务
+        services.AddSingleton<LibraryScanner>();
+
         // ViewModels — 单例（整个应用生命周期内保持状态）
         services.AddSingleton<ReaderViewModel>();
         services.AddSingleton<MainWindowViewModel>();

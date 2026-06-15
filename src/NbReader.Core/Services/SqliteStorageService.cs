@@ -895,6 +895,32 @@ public class SqliteStorageService : IStorageService, IDisposable
         return result;
     }
 
+    public List<string> GetDistinctLanguages()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = @"SELECT DISTINCT language FROM comic_resources
+            WHERE language IS NOT NULL AND is_bookmarked = 1 ORDER BY language;";
+
+        using var reader = cmd.ExecuteReader();
+        var result = new List<string>();
+        while (reader.Read())
+            result.Add(reader.GetString(0));
+        return result;
+    }
+
+    public List<string> GetDistinctContentTypes()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = @"SELECT DISTINCT content_type FROM comic_resources
+            WHERE content_type IS NOT NULL AND is_bookmarked = 1 ORDER BY content_type;";
+
+        using var reader = cmd.ExecuteReader();
+        var result = new List<string>();
+        while (reader.Read())
+            result.Add(reader.GetString(0));
+        return result;
+    }
+
     // ═══════════════════════════════════════════════════════════
     // 辅助方法
     // ═══════════════════════════════════════════════════════════

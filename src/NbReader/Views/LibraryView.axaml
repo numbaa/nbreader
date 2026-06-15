@@ -9,7 +9,8 @@
              x:DataType="vm:LibraryViewModel"
              x:Name="Root">
 
-    <Grid RowDefinitions="Auto,*" ColumnDefinitions="180,*">
+    <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="180,*">
+        <!-- 搜索工具栏 -->
         <Border Grid.Row="0" Grid.ColumnSpan="2" Padding="8"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
                 BorderThickness="0,0,0,1">
@@ -25,10 +26,99 @@
                         <TextBlock Text="☰" IsVisible="{Binding !IsGridView}" />
                     </Panel>
                 </Button>
+                <Separator Width="1" Height="20" />
+                <Button Content="📂 扫描目录" Click="OnScanDirectoryClick"
+                        IsEnabled="{Binding !IsScanning}" />
+                <Button Content="🔄 扫描全部" Command="{Binding ScanAllCommand}"
+                        IsEnabled="{Binding !IsScanning}" />
+                <TextBlock Text="{Binding ScanStatusText}"
+                           FontSize="12" Foreground="Gray"
+                           VerticalAlignment="Center"
+                           IsVisible="{Binding IsScanning}" />
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="1" Grid.Column="0" Padding="4,8"
+        <!-- 筛选 Chip 栏 -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" Padding="6,4"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasActiveFilters}">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Content="+ 筛选" Command="{Binding ToggleFilterDropdownCommand}"
+                        FontSize="12" Padding="6,2" />
+                <ItemsControl ItemsSource="{Binding ActiveFilters}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ActiveFilter">
+                            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                                    CornerRadius="10" Padding="6,2" Margin="2,0">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{Binding Label}" FontSize="12"
+                                               VerticalAlignment="Center" />
+                                    <Button Content="×" FontSize="10" Padding="2,0"
+                                            Background="Transparent"
+                                            Click="OnRemoveFilterClick" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- 筛选下拉面板 -->
+        <Border Grid.Row="1" Grid.Column="1" Padding="8"
+                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                CornerRadius="4" Margin="4"
+                IsVisible="{Binding IsFilterDropdownOpen}"
+                ZIndex="100"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MinWidth="200" MaxHeight="300">
+            <ScrollViewer>
+                <StackPanel Spacing="8">
+                    <!-- 语言 -->
+                    <TextBlock Text="语言" FontWeight="Bold" FontSize="13" />
+                    <ItemsControl ItemsSource="{Binding AvailableLanguages}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding .}" FontSize="12" Padding="6,2" Margin="2"
+                                        Click="OnAddLanguageFilterClick" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- 内容类型 -->
+                    <TextBlock Text="类型" FontWeight="Bold" FontSize="13" />
+                    <ItemsControl ItemsSource="{Binding AvailableContentTypes}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding .}" FontSize="12" Padding="6,2" Margin="2"
+                                        Click="OnAddContentTypeFilterClick" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Content="关闭" Command="{Binding ToggleFilterDropdownCommand}"
+                            HorizontalAlignment="Right" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="2" Grid.Column="0" Padding="4,8"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
                 BorderThickness="0,0,1,0">
             <Grid RowDefinitions="*,Auto">
@@ -46,6 +136,7 @@
                                 <DataTemplate x:CompileBindings="False">
                                     <Button HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Left"
+                                            DragDrop.AllowDrop="True"
                                             Command="{Binding DataContext.SelectCategoryCommand, ElementName=Root}"
                                             CommandParameter="{Binding .}">
                                         <Button.ContextMenu>
@@ -81,7 +172,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="*,Auto">
+        <Grid Grid.Row="2" Grid.Column="1" RowDefinitions="*,Auto">
             <TextBlock Grid.Row="0" Text="{Binding EmptyMessage}"
                        FontSize="18" Foreground="Gray"
                        HorizontalAlignment="Center" VerticalAlignment="Center"

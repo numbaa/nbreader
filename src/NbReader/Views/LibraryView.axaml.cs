@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using NbReader.Core.Models;
 using NbReader.ViewModels;
 
@@ -12,24 +13,137 @@ public partial class LibraryView : UserControl
     /// <summary>右键菜单触发时暂存的漫画资源。</summary>
     private ComicResource? _currentContextResource;
 
+    /// <summary>拖拽中的漫画资源。</summary>
+    private ComicResource? _draggingResource;
+
+    /// <summary>拖拽起始点（用于判断是否移动足够距离以启动拖拽）。</summary>
+    private Point _dragStartPoint;
+
+    /// <summary>是否正在拖拽。</summary>
+    private bool _isDragging;
+
     private static readonly string LogPath = Path.Combine(Path.GetTempPath(), "NbReader", "contextmenu.log");
 
     public LibraryView()
     {
         InitializeComponent();
+        AddHandler(DragDrop.DropEvent, OnCategoryDrop);
+        AddHandler(DragDrop.DragOverEvent, OnCategoryDragOver);
     }
 
     /// <summary>
-    /// 拦截右键，在 ContextMenu 弹出前记录被点击的漫画。
+    /// 拦截指针按下：右键记录上下文菜单项，左键启动拖拽检测。
     /// </summary>
     private void OnComicCardPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Border border) return;
-        // 只处理右键
-        if (e.GetCurrentPoint(border).Properties.PointerUpdateKind != PointerUpdateKind.RightButtonPressed) return;
 
-        _currentContextResource = border.DataContext as ComicResource;
-        Log($"[PTR] resource={_currentContextResource?.Title ?? "NULL"}, id={_currentContextResource?.Id}");
+        var point = e.GetCurrentPoint(border);
+        var kind = point.Properties.PointerUpdateKind;
+
+        // 右键：记录上下文菜单数据
+        if (kind == PointerUpdateKind.RightButtonPressed)
+        {
+            _currentContextResource = border.DataContext as ComicResource;
+            Log($"[PTR] resource={_currentContextResource?.Title ?? "NULL"}, id={_currentContextResource?.Id}");
+            return;
+        }
+
+        // 左键：启动拖拽检测
+        if (kind == PointerUpdateKind.LeftButtonPressed)
+        {
+            _draggingResource = border.DataContext as ComicResource;
+            _dragStartPoint = e.GetPosition(this);
+            _isDragging = false;
+
+            // 订阅 PointerMoved 以检测拖拽
+            border.PointerMoved += OnComicCardPointerMoved;
+            border.PointerReleased += OnComicCardPointerReleased;
+        }
+    }
+
+    /// <summary>
+    /// 检测拖拽：移动足够距离后启动 DragDrop。
+    /// </summary>
+    private async void OnComicCardPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_isDragging || _draggingResource is null) return;
+
+        var currentPoint = e.GetPosition(this);
+        var delta = currentPoint - _dragStartPoint;
+
+        // 移动超过 5px 阈值才启动拖拽
+        if (Math.Abs(delta.X) < 5 && Math.Abs(delta.Y) < 5) return;
+
+        _isDragging = true;
+
+        // 取消事件订阅
+        if (sender is Border border)
+        {
+            border.PointerMoved -= OnComicCardPointerMoved;
+            border.PointerReleased -= OnComicCardPointerReleased;
+        }
+
+        // 启动 Avalonia 拖拽
+        var data = new DataObject();
+        data.Set("ComicResource", _draggingResource);
+        await DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+
+        _draggingResource = null;
+        _isDragging = false;
+    }
+
+    /// <summary>
+    /// 指针释放：取消耗未完成的拖拽。
+    /// </summary>
+    private void OnComicCardPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (sender is Border border)
+        {
+            border.PointerMoved -= OnComicCardPointerMoved;
+            border.PointerReleased -= OnComicCardPointerReleased;
+        }
+        _draggingResource = null;
+        _isDragging = false;
+    }
+
+    /// <summary>
+    /// 拖拽悬停到分类名上时，显示允许放入的图标。
+    /// </summary>
+    private void OnCategoryDragOver(object? sender, DragEventArgs e)
+    {
+        // 检查拖拽数据中是否包含 ComicResource
+        if (e.Data.Contains("ComicResource"))
+        {
+            e.DragEffects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// 拖拽放入分类名 → 将漫画归入该分类。
+    /// </summary>
+    private void OnCategoryDrop(object? sender, DragEventArgs e)
+    {
+        var resource = e.Data.Get("ComicResource") as ComicResource;
+        if (resource is null) return;
+        if (DataContext is not LibraryViewModel vm) return;
+
+        // 查找拖放位置下的分类按钮
+        var position = e.GetPosition(this);
+        var element = this.GetVisualsAt(position)
+            .OfType<Button>()
+            .FirstOrDefault(btn => btn.DataContext is Category);
+
+        if (element?.DataContext is Category category)
+        {
+            vm.MoveToCategory(resource, category);
+            Log($"[DRAG_DROP] resource={resource.Title}, category={category.Name}");
+        }
+        else
+        {
+            Log($"[DRAG_DROP] No category found at drop position");
+        }
     }
 
     /// <summary>
@@ -159,5 +273,66 @@ public partial class LibraryView : UserControl
             File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n");
         }
         catch { /* 日志失败不影响主流程 */ }
+    }
+
+    /// <summary>
+    /// 「扫描目录」按钮 — 打开文件夹选择器，扫描选中的目录。
+    /// </summary>
+    private async void OnScanDirectoryClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not LibraryViewModel vm) return;
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null) return;
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+            new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = "选择要扫描的漫画目录",
+                AllowMultiple = false
+            });
+
+        if (folders.Count == 0) return;
+
+        var path = folders[0].Path.LocalPath;
+        await vm.ScanDirectoryAndRefreshAsync(path);
+    }
+
+    /// <summary>
+    /// 移除筛选 Chip。
+    /// </summary>
+    private void OnRemoveFilterClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button) return;
+        if (button.DataContext is not ActiveFilter filter) return;
+        if (DataContext is not LibraryViewModel vm) return;
+
+        vm.RemoveFilter(filter);
+    }
+
+    /// <summary>
+    /// 「+ 筛选」中添加语言筛选。
+    /// </summary>
+    private void OnAddLanguageFilterClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button) return;
+        if (button.DataContext is not string langCode) return;
+        if (DataContext is not LibraryViewModel vm) return;
+
+        vm.AddLanguageFilter(langCode);
+        vm.IsFilterDropdownOpen = false;
+    }
+
+    /// <summary>
+    /// 「+ 筛选」中添加内容类型筛选。
+    /// </summary>
+    private void OnAddContentTypeFilterClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button) return;
+        if (button.DataContext is not string contentType) return;
+        if (DataContext is not LibraryViewModel vm) return;
+
+        vm.AddContentTypeFilter(contentType);
+        vm.IsFilterDropdownOpen = false;
     }
 }

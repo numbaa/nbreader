@@ -89,12 +89,13 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public HistoryViewModel History { get; }
 
-    public MainWindowViewModel(ReaderViewModel reader, IStorageService storage, IComicInfoParser comicInfoParser)
+    public MainWindowViewModel(ReaderViewModel reader, IStorageService storage,
+        IComicInfoParser comicInfoParser, LibraryScanner libraryScanner)
     {
         _storage = storage;
         _comicInfoParser = comicInfoParser;
         Reader = reader;
-        Library = new LibraryViewModel(storage, NavigateToReader);
+        Library = new LibraryViewModel(storage, NavigateToReader, libraryScanner);
         History = new HistoryViewModel(storage, NavigateToReader);
         CurrentView = reader;
     }

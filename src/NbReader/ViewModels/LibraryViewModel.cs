@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NbReader.Core.Abstractions;
 using NbReader.Core.Models;
+using NbReader.Core.Services;
 
 namespace NbReader.ViewModels;
 
@@ -12,6 +13,7 @@ namespace NbReader.ViewModels;
 public partial class LibraryViewModel : ViewModelBase
 {
     private readonly IStorageService _storage;
+    private readonly LibraryScanner _scanner;
     private readonly Action<string> _openComicCallback;
 
     /// <summary>漫画列表</summary>
@@ -73,9 +75,34 @@ public partial class LibraryViewModel : ViewModelBase
         _ => "最近添加"
     };
 
-    public LibraryViewModel(IStorageService storage, Action<string> openComicCallback)
+    // ═══════════════════════════════════════════════════════════
+    // 筛选 Chip
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>活跃的筛选 Chip 列表</summary>
+    public ObservableCollection<ActiveFilter> ActiveFilters { get; } = new();
+
+    /// <summary>可用的语言选项</summary>
+    public ObservableCollection<string> AvailableLanguages { get; } = new();
+
+    /// <summary>可用的内容类型选项</summary>
+    public ObservableCollection<string> AvailableContentTypes { get; } = new();
+
+    /// <summary>可用的标签选项</summary>
+    public ObservableCollection<Tag> AvailableTags { get; } = new();
+
+    /// <summary>筛选下拉面板是否打开</summary>
+    [ObservableProperty]
+    private bool _isFilterDropdownOpen;
+
+    /// <summary>是否有活跃的筛选</summary>
+    public bool HasActiveFilters => ActiveFilters.Count > 0;
+
+    public LibraryViewModel(IStorageService storage, Action<string> openComicCallback,
+        LibraryScanner? scanner = null)
     {
         _storage = storage;
+        _scanner = scanner ?? new LibraryScanner(storage, new ComicInfoXmlParser());
         _openComicCallback = openComicCallback;
     }
 
@@ -87,6 +114,7 @@ public partial class LibraryViewModel : ViewModelBase
         LoadCategories();
         RefreshAllCount();
         LoadBooks();
+        LoadAvailableFilters();
     }
 
     /// <summary>
@@ -307,5 +335,204 @@ public partial class LibraryViewModel : ViewModelBase
     {
         SearchText = string.Empty;
         LoadBooks();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 筛选 Chip 管理
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 加载可用筛选选项。
+    /// </summary>
+    private void LoadAvailableFilters()
+    {
+        // 可用语言
+        var languages = _storage.GetDistinctLanguages();
+        AvailableLanguages.Clear();
+        foreach (var lang in languages)
+            AvailableLanguages.Add(lang);
+
+        // 可用内容类型
+        var contentTypes = _storage.GetDistinctContentTypes();
+        AvailableContentTypes.Clear();
+        foreach (var ct in contentTypes)
+            AvailableContentTypes.Add(ct);
+
+        // 可用标签
+        var tags = _storage.GetAllTags();
+        AvailableTags.Clear();
+        foreach (var tag in tags)
+            AvailableTags.Add(tag);
+    }
+
+    /// <summary>
+    /// 获取语言的显示名称。
+    /// </summary>
+    public static string GetLanguageDisplayName(string langCode) => langCode switch
+    {
+        "zh" => "中文",
+        "ja" => "日文",
+        "en" => "英文",
+        "ko" => "韩文",
+        _ => langCode
+    };
+
+    /// <summary>
+    /// 获取内容类型的显示名称。
+    /// </summary>
+    public static string GetContentTypeDisplayName(string ct) => ct switch
+    {
+        "manga" => "漫画",
+        "doujinshi" => "同人志",
+        "artist cg" => "画集",
+        "comic" => "美漫",
+        _ => ct
+    };
+
+    /// <summary>
+    /// 添加语言筛选 Chip。
+    /// </summary>
+    public void AddLanguageFilter(string langCode)
+    {
+        // 移除已有的语言筛选
+        RemoveFiltersByType("language");
+        FilterLanguage = langCode;
+        ActiveFilters.Add(new ActiveFilter
+        {
+            FilterType = "language",
+            Label = GetLanguageDisplayName(langCode),
+            Value = langCode
+        });
+        OnPropertyChanged(nameof(HasActiveFilters));
+        LoadBooks();
+    }
+
+    /// <summary>
+    /// 添加内容类型筛选 Chip。
+    /// </summary>
+    public void AddContentTypeFilter(string contentType)
+    {
+        RemoveFiltersByType("content_type");
+        FilterContentType = contentType;
+        ActiveFilters.Add(new ActiveFilter
+        {
+            FilterType = "content_type",
+            Label = GetContentTypeDisplayName(contentType),
+            Value = contentType
+        });
+        OnPropertyChanged(nameof(HasActiveFilters));
+        LoadBooks();
+    }
+
+    /// <summary>
+    /// 移除指定筛选 Chip。
+    /// </summary>
+    public void RemoveFilter(ActiveFilter filter)
+    {
+        ActiveFilters.Remove(filter);
+
+        if (filter.FilterType == "language")
+            FilterLanguage = null;
+        else if (filter.FilterType == "content_type")
+            FilterContentType = null;
+
+        OnPropertyChanged(nameof(HasActiveFilters));
+        LoadBooks();
+    }
+
+    /// <summary>
+    /// 移除所有指定类型的筛选。
+    /// </summary>
+    private void RemoveFiltersByType(string filterType)
+    {
+        var toRemove = ActiveFilters.Where(f => f.FilterType == filterType).ToList();
+        foreach (var f in toRemove)
+            ActiveFilters.Remove(f);
+    }
+
+    /// <summary>
+    /// 切换筛选下拉面板。
+    /// </summary>
+    [RelayCommand]
+    private void ToggleFilterDropdown()
+    {
+        IsFilterDropdownOpen = !IsFilterDropdownOpen;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 本地扫描
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>是否正在扫描</summary>
+    [ObservableProperty]
+    private bool _isScanning;
+
+    /// <summary>扫描状态文本</summary>
+    [ObservableProperty]
+    private string _scanStatusText = string.Empty;
+
+    /// <summary>
+    /// 扫描指定目录，导入发现的漫画。
+    /// 由 View 层调用（通过文件夹选择器获取路径后）。
+    /// </summary>
+    public async Task ScanDirectoryAndRefreshAsync(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath)) return;
+
+        IsScanning = true;
+        ScanStatusText = "正在扫描...";
+
+        try
+        {
+            var imported = await _scanner.ScanDirectoryAsync(directoryPath);
+            ScanStatusText = imported.Count > 0
+                ? $"扫描完成，导入了 {imported.Count} 本漫画"
+                : "未发现新的漫画";
+            Refresh();
+        }
+        catch (Exception ex)
+        {
+            ScanStatusText = $"扫描失败: {ex.Message}";
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    /// <summary>
+    /// 扫描所有已配置的监控目录。
+    /// </summary>
+    [RelayCommand]
+    private async Task ScanAllAsync()
+    {
+        IsScanning = true;
+        ScanStatusText = "正在扫描所有监控目录...";
+
+        try
+        {
+            var imported = await _scanner.ScanAllAsync();
+            ScanStatusText = imported.Count > 0
+                ? $"扫描完成，导入了 {imported.Count} 本漫画"
+                : "未发现新的漫画";
+            Refresh();
+        }
+        catch (Exception ex)
+        {
+            ScanStatusText = $"扫描失败: {ex.Message}";
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    /// <summary>
+    /// 添加监控目录。
+    /// </summary>
+    public void AddMonitoredDirectory(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        _storage.AddMonitoredDirectory(path);
     }
 }
