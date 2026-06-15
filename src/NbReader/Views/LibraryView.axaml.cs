@@ -56,9 +56,13 @@ public partial class LibraryView : UserControl
             _dragStartPoint = e.GetPosition(this);
             _isDragging = false;
 
+            // 捕获指针以接收后续 PointerMoved 事件
+            e.Pointer?.Capture(border);
+
             // 订阅 PointerMoved 以检测拖拽
             border.PointerMoved += OnComicCardPointerMoved;
             border.PointerReleased += OnComicCardPointerReleased;
+            border.PointerCaptureLost += OnComicCardPointerCaptureLost;
         }
     }
 
@@ -82,6 +86,8 @@ public partial class LibraryView : UserControl
         {
             border.PointerMoved -= OnComicCardPointerMoved;
             border.PointerReleased -= OnComicCardPointerReleased;
+            border.PointerCaptureLost -= OnComicCardPointerCaptureLost;
+            e.Pointer?.Capture(null);
         }
 
         // 启动 Avalonia 拖拽
@@ -98,10 +104,27 @@ public partial class LibraryView : UserControl
     /// </summary>
     private void OnComicCardPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        CleanupDrag(sender);
+    }
+
+    /// <summary>
+    /// 指针捕获丢失：取消耗未完成的拖拽。
+    /// </summary>
+    private void OnComicCardPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        CleanupDrag(sender);
+    }
+
+    /// <summary>
+    /// 清理拖拽状态。
+    /// </summary>
+    private void CleanupDrag(object? sender)
+    {
         if (sender is Border border)
         {
             border.PointerMoved -= OnComicCardPointerMoved;
             border.PointerReleased -= OnComicCardPointerReleased;
+            border.PointerCaptureLost -= OnComicCardPointerCaptureLost;
         }
         _draggingResource = null;
         _isDragging = false;
@@ -112,11 +135,14 @@ public partial class LibraryView : UserControl
     /// </summary>
     private void OnCategoryDragOver(object? sender, DragEventArgs e)
     {
-        // 检查拖拽数据中是否包含 ComicResource
         if (e.Data.Contains("ComicResource"))
         {
             e.DragEffects = DragDropEffects.Move;
             e.Handled = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
         }
     }
 
@@ -126,23 +152,47 @@ public partial class LibraryView : UserControl
     private void OnCategoryDrop(object? sender, DragEventArgs e)
     {
         var resource = e.Data.Get("ComicResource") as ComicResource;
-        if (resource is null) return;
-        if (DataContext is not LibraryViewModel vm) return;
+        if (resource is null)
+        {
+            Log("[DRAG_DROP] No ComicResource in data");
+            return;
+        }
+        if (DataContext is not LibraryViewModel vm)
+        {
+            Log("[DRAG_DROP] DataContext is not LibraryViewModel");
+            return;
+        }
 
-        // 查找拖放位置下的分类按钮
-        var position = e.GetPosition(this);
-        var element = this.GetVisualsAt(position)
-            .OfType<Button>()
-            .FirstOrDefault(btn => btn.DataContext is Category);
+        // 尝试从事件源或其父级找到分类按钮
+        Category? category = null;
 
-        if (element?.DataContext is Category category)
+        if (e.Source is Button btn && btn.DataContext is Category cat)
+        {
+            category = cat;
+        }
+        else if (e.Source is StyledElement se)
+        {
+            // 向上遍历可视化树查找分类按钮
+            var parent = se.Parent;
+            while (parent is not null)
+            {
+                if (parent is Button parentBtn && parentBtn.DataContext is Category parentCat)
+                {
+                    category = parentCat;
+                    break;
+                }
+                parent = parent.Parent;
+            }
+        }
+
+        if (category is not null)
         {
             vm.MoveToCategory(resource, category);
             Log($"[DRAG_DROP] resource={resource.Title}, category={category.Name}");
         }
         else
         {
-            Log($"[DRAG_DROP] No category found at drop position");
+            Log($"[DRAG_DROP] No category found, Source={e.Source?.GetType().Name}");
         }
     }
 

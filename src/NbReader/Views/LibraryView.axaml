@@ -38,15 +38,15 @@
             </StackPanel>
         </Border>
 
-        <!-- 筛选 Chip 栏 -->
+        <!-- 筛选 Chip 栏 — 「+ 筛选」始终可见，Chip 在有活跃筛选时才显示 -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" Padding="6,4"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
-                BorderThickness="0,0,0,1"
-                IsVisible="{Binding HasActiveFilters}">
+                BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal" Spacing="4">
                 <Button Content="+ 筛选" Command="{Binding ToggleFilterDropdownCommand}"
                         FontSize="12" Padding="6,2" />
-                <ItemsControl ItemsSource="{Binding ActiveFilters}">
+                <ItemsControl ItemsSource="{Binding ActiveFilters}"
+                              IsVisible="{Binding HasActiveFilters}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel />
@@ -80,37 +80,46 @@
                 MinWidth="200" MaxHeight="300">
             <ScrollViewer>
                 <StackPanel Spacing="8">
+                    <!-- 空状态提示 -->
+                    <TextBlock Text="暂无可用筛选选项&#x0a;导入带 ComicInfo.xml 的漫画后可获取语言和类型"
+                               FontSize="12" Foreground="Gray"
+                               IsVisible="{Binding !HasAnyAvailableFilters}" />
+
                     <!-- 语言 -->
-                    <TextBlock Text="语言" FontWeight="Bold" FontSize="13" />
-                    <ItemsControl ItemsSource="{Binding AvailableLanguages}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Content="{Binding .}" FontSize="12" Padding="6,2" Margin="2"
-                                        Click="OnAddLanguageFilterClick" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Spacing="4" IsVisible="{Binding HasAvailableLanguages}">
+                        <TextBlock Text="语言" FontWeight="Bold" FontSize="13" />
+                        <ItemsControl ItemsSource="{Binding AvailableLanguages}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding .}" FontSize="12" Padding="6,2" Margin="2"
+                                            Click="OnAddLanguageFilterClick" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
 
                     <!-- 内容类型 -->
-                    <TextBlock Text="类型" FontWeight="Bold" FontSize="13" />
-                    <ItemsControl ItemsSource="{Binding AvailableContentTypes}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Content="{Binding .}" FontSize="12" Padding="6,2" Margin="2"
-                                        Click="OnAddContentTypeFilterClick" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Spacing="4" IsVisible="{Binding HasAvailableContentTypes}">
+                        <TextBlock Text="类型" FontWeight="Bold" FontSize="13" />
+                        <ItemsControl ItemsSource="{Binding AvailableContentTypes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding .}" FontSize="12" Padding="6,2" Margin="2"
+                                            Click="OnAddContentTypeFilterClick" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
 
                     <Button Content="关闭" Command="{Binding ToggleFilterDropdownCommand}"
                             HorizontalAlignment="Right" />

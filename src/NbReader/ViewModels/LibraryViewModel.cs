@@ -98,6 +98,18 @@ public partial class LibraryViewModel : ViewModelBase
     /// <summary>是否有活跃的筛选</summary>
     public bool HasActiveFilters => ActiveFilters.Count > 0;
 
+    /// <summary>是否有可用的语言筛选选项</summary>
+    [ObservableProperty]
+    private bool _hasAvailableLanguages;
+
+    /// <summary>是否有可用的内容类型筛选选项</summary>
+    [ObservableProperty]
+    private bool _hasAvailableContentTypes;
+
+    /// <summary>是否有任何可用的筛选选项</summary>
+    [ObservableProperty]
+    private bool _hasAnyAvailableFilters;
+
     public LibraryViewModel(IStorageService storage, Action<string> openComicCallback,
         LibraryScanner? scanner = null)
     {
@@ -272,12 +284,18 @@ public partial class LibraryViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 将漫画移至指定分类（由右键菜单调用）。
+    /// 将漫画移至指定分类（添加目标，同时从当前选中分类移除）。
     /// </summary>
     public void MoveToCategory(ComicResource resource, Category category)
     {
         _storage.AddToCategory(resource.Id, category.Id);
+
+        // 如果当前正在查看某个分类，拖拽意味着"从当前分类移出"
+        if (SelectedCategory is not null && SelectedCategory.Id != category.Id)
+            _storage.RemoveFromCategory(resource.Id, SelectedCategory.Id);
+
         LoadCategories();
+        LoadBooks();
         RefreshAllCount();
     }
 
@@ -351,18 +369,22 @@ public partial class LibraryViewModel : ViewModelBase
         AvailableLanguages.Clear();
         foreach (var lang in languages)
             AvailableLanguages.Add(lang);
+        HasAvailableLanguages = AvailableLanguages.Count > 0;
 
         // 可用内容类型
         var contentTypes = _storage.GetDistinctContentTypes();
         AvailableContentTypes.Clear();
         foreach (var ct in contentTypes)
             AvailableContentTypes.Add(ct);
+        HasAvailableContentTypes = AvailableContentTypes.Count > 0;
 
         // 可用标签
         var tags = _storage.GetAllTags();
         AvailableTags.Clear();
         foreach (var tag in tags)
             AvailableTags.Add(tag);
+
+        HasAnyAvailableFilters = HasAvailableLanguages || HasAvailableContentTypes || AvailableTags.Count > 0;
     }
 
     /// <summary>
