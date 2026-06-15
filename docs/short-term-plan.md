@@ -101,10 +101,10 @@
 
 ### Day 1-2：阅读进度集成
 
-- [ ] `ReaderViewModel` 引入 `IStorageService`
-- [ ] 打开漫画时：`GetProgress(resourceId)` → 有记录则跳转
-- [ ] 关闭漫画时：`SaveProgress(resourceId, page, total)`
-- [ ] 设置变更即时持久化（方向/适应模式）
+- [x] `ReaderViewModel` 引入 `IStorageService`
+- [x] 打开漫画时：`GetProgress(resourceId)` → 有记录则跳转
+- [x] 关闭漫画时：`SaveProgress(resourceId, page, total)`
+- [x] 设置变更即时持久化（方向/适应模式）
 - [x] 📂 打开文件 → 自动入库到书架
 - [x] ReaderView 常驻不销毁（可见性切换，解决首页灰色问题）
 

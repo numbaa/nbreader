@@ -56,6 +56,12 @@ public partial class ReaderView : UserControl
             _scrollViewer.AddHandler(PointerReleasedEvent, OnScrollPointerReleased,
                 RoutingStrategies.Tunnel, handledEventsToo: true);
         }
+
+        // 如果 ViewLocator 重建了 View，OnDataContextChanged 可能在 OnInitialized
+        // 之前触发（此时 _scrollViewer 为 null，SwitchLayout 被跳过）。
+        // 在此处补做布局同步，确保 _currentLayoutMode 与 ViewModel 一致。
+        if (DataContext is ReaderViewModel vm)
+            SwitchLayout(vm.ReadingMode);
     }
 
     protected override void OnDataContextChanged(EventArgs e)

@@ -1,4 +1,6 @@
 using NbReader.Core.Abstractions;
+using NbReader.Core.Models;
+using NbReader.Core.Services;
 using NbReader.ViewModels;
 using SkiaSharp;
 
@@ -7,8 +9,20 @@ namespace NbReader.Tests.UI;
 /// <summary>
 /// ReaderViewModel 的单元测试。
 /// </summary>
-public class ReaderViewModelTests
+public class ReaderViewModelTests : IDisposable
 {
+    private readonly SqliteStorageService _storage;
+
+    public ReaderViewModelTests()
+    {
+        _storage = new SqliteStorageService(":memory:");
+    }
+
+    public void Dispose()
+    {
+        _storage.Dispose();
+    }
+
     private static IImageLoader CreateFakeLoader()
     {
         return new FakeImageLoader();
@@ -256,6 +270,172 @@ public class ReaderViewModelTests
 
         vm.CycleReadingDirectionCommand.Execute(null);
         vm.ReadingDirection.Should().Be(ReadingDirection.LeftToRight);
+    }
+
+    // ─── 阅读进度持久化测试 ────────────────────────────────────────
+
+    [Fact]
+    public void SaveCurrentProgress_WhenNoResource_ShouldNotThrow()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Act: no resource set, save should be no-op
+        var act = () => vm.SaveCurrentProgress();
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void SaveCurrentProgress_ShouldPersistToStorage()
+    {
+        // Arrange: 先注册一个漫画资源
+        var resource = new ComicResource
+        {
+            Title = "Test Comic",
+            SourceType = "local",
+            SourceId = "/test/path.cbz",
+            PageCount = 100,
+            AddedDate = DateTime.UtcNow.ToString("O"),
+            IsBookmarked = true
+        };
+        int resourceId = _storage.AddResource(resource);
+
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // 模拟设置当前资源（通过反射或直接设字段）
+        typeof(ReaderViewModel)
+            .GetField("_currentResourceId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(vm, resourceId);
+        // 模拟翻到第 42 页
+        typeof(ReaderViewModel)
+            .GetProperty("CurrentPageIndex")!
+            .SetValue(vm, 42);
+
+        // Act
+        vm.SaveCurrentProgress();
+
+        // Assert
+        var progress = _storage.GetProgress(resourceId);
+        progress.Should().NotBeNull();
+        progress!.CurrentPage.Should().Be(42);
+    }
+
+    [Fact]
+    public void Close_ShouldSaveProgress()
+    {
+        // Arrange
+        var resource = new ComicResource
+        {
+            Title = "Test Comic 2",
+            SourceType = "local",
+            SourceId = "/test/path2.cbz",
+            PageCount = 50,
+            AddedDate = DateTime.UtcNow.ToString("O"),
+            IsBookmarked = true
+        };
+        int resourceId = _storage.AddResource(resource);
+
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+        typeof(ReaderViewModel)
+            .GetField("_currentResourceId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(vm, resourceId);
+        typeof(ReaderViewModel)
+            .GetProperty("CurrentPageIndex")!
+            .SetValue(vm, 25);
+
+        // Act
+        vm.CloseCommand.Execute(null);
+
+        // Assert
+        var progress = _storage.GetProgress(resourceId);
+        progress.Should().NotBeNull();
+        progress!.CurrentPage.Should().Be(25);
+        vm.CurrentPageIndex.Should().Be(0); // 关闭后重置
+    }
+
+    // ─── 设置持久化测试 ────────────────────────────────────────────
+
+    [Fact]
+    public void CycleFitMode_ShouldPersistSetting()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Act: 切换到 FillWidth
+        vm.CycleFitModeCommand.Execute(null);
+        vm.FitMode.Should().Be(FitMode.FillWidth);
+
+        // Assert: 设置已持久化
+        _storage.GetSetting("reader.fitMode").Should().Be("FillWidth");
+    }
+
+    [Fact]
+    public void CycleReadingDirection_ShouldPersistSetting()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Act: 切换到 R→L
+        vm.CycleReadingDirectionCommand.Execute(null);
+        vm.ReadingDirection.Should().Be(ReadingDirection.RightToLeft);
+
+        // Assert: 设置已持久化
+        _storage.GetSetting("reader.readingDirection").Should().Be("RightToLeft");
+    }
+
+    [Fact]
+    public void Constructor_ShouldRestoreSettingsFromStorage()
+    {
+        // Arrange: 预先写入设置
+        _storage.SetSetting("reader.fitMode", "FillHeight");
+        _storage.SetSetting("reader.readingDirection", "RightToLeft");
+
+        // Act: 新建 VM 应恢复设置
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Assert
+        vm.FitMode.Should().Be(FitMode.FillHeight);
+        vm.ReadingDirection.Should().Be(ReadingDirection.RightToLeft);
+    }
+
+    [Fact]
+    public void Constructor_ShouldDefaultWhenNoSavedSettings()
+    {
+        // Arrange & Act: 无预存设置时新建 VM
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Assert: 使用默认值
+        vm.FitMode.Should().Be(FitMode.Uniform);
+        vm.ReadingDirection.Should().Be(ReadingDirection.LeftToRight);
+    }
+
+    [Fact]
+    public void Constructor_ShouldRestoreReadingModeFromStorage()
+    {
+        // Arrange
+        _storage.SetSetting("reader.readingMode", "Scroll");
+
+        // Act
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Assert
+        vm.ReadingMode.Should().Be(ReadingMode.Scroll);
+    }
+
+    [Fact]
+    public void CycleReadingMode_ShouldPersistSetting()
+    {
+        // Arrange
+        var vm = new ReaderViewModel(CreateFakeLoader(), _storage);
+
+        // Act: 切换到双页
+        vm.CycleReadingModeCommand.Execute(null);
+        vm.ReadingMode.Should().Be(ReadingMode.DualPage);
+
+        // Assert: 设置已持久化
+        _storage.GetSetting("reader.readingMode").Should().Be("DualPage");
     }
 }
 

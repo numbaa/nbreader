@@ -51,7 +51,13 @@ public enum ReadingDirection
 public partial class ReaderViewModel : ViewModelBase
 {
     private readonly IImageLoader _imageLoader;
+    private readonly IStorageService? _storage;
     private IFileSource? _fileSource;
+
+    /// <summary>
+    /// 当前打开的资源 ID（用于进度保存/恢复，未打开时为 null）。
+    /// </summary>
+    private int? _currentResourceId;
 
     [ObservableProperty]
     private IImage? _currentImage;
@@ -185,9 +191,53 @@ public partial class ReaderViewModel : ViewModelBase
         }
     }
 
-    public ReaderViewModel(IImageLoader imageLoader)
+    public ReaderViewModel(IImageLoader imageLoader, IStorageService? storage = null)
     {
         _imageLoader = imageLoader ?? throw new ArgumentNullException(nameof(imageLoader));
+        _storage = storage;
+
+        // 恢复持久化的阅读偏好设置
+        if (_storage is not null)
+        {
+            var savedFitMode = _storage.GetSetting("reader.fitMode");
+            if (savedFitMode is not null && Enum.TryParse<FitMode>(savedFitMode, out var fm))
+                FitMode = fm;
+
+            var savedDirection = _storage.GetSetting("reader.readingDirection");
+            if (savedDirection is not null && Enum.TryParse<ReadingDirection>(savedDirection, out var dir))
+                ReadingDirection = dir;
+
+            var savedReadingMode = _storage.GetSetting("reader.readingMode");
+            if (savedReadingMode is not null && Enum.TryParse<ReadingMode>(savedReadingMode, out var rm))
+                ReadingMode = rm;
+        }
+    }
+
+    /// <summary>
+    /// 设置当前资源并恢复阅读进度（如有）。
+    /// </summary>
+    public async Task SetCurrentResourceAsync(int resourceId)
+    {
+        _currentResourceId = resourceId;
+
+        if (_storage is null || _fileSource is null) return;
+
+        var progress = _storage.GetProgress(resourceId);
+        if (progress is not null && progress.CurrentPage > 0 && progress.CurrentPage < TotalPages)
+        {
+            CurrentPageIndex = progress.CurrentPage;
+            await ReloadPagesForCurrentModeAsync();
+        }
+    }
+
+    /// <summary>
+    /// 保存当前阅读进度（翻页不调，仅在关闭/离开时调用）。
+    /// </summary>
+    public void SaveCurrentProgress()
+    {
+        if (_storage is null || _currentResourceId is null) return;
+
+        _storage.SaveProgress(_currentResourceId.Value, CurrentPageIndex);
     }
 
     /// <summary>
@@ -572,6 +622,8 @@ public partial class ReaderViewModel : ViewModelBase
                 : 0;
 
         await ReloadPagesForCurrentModeAsync();
+
+        _storage?.SetSetting("reader.readingMode", ReadingMode.ToString());
     }
 
     /// <summary>
@@ -586,6 +638,8 @@ public partial class ReaderViewModel : ViewModelBase
             ReadingDirection.RightToLeft => ReadingDirection.LeftToRight,
             _ => ReadingDirection.LeftToRight
         };
+
+        _storage?.SetSetting("reader.readingDirection", ReadingDirection.ToString());
     }
 
     /// <summary>
@@ -623,6 +677,8 @@ public partial class ReaderViewModel : ViewModelBase
             FitMode.Original => FitMode.Uniform,
             _ => FitMode.Uniform
         };
+
+        _storage?.SetSetting("reader.fitMode", FitMode.ToString());
     }
 
     /// <summary>
@@ -630,13 +686,14 @@ public partial class ReaderViewModel : ViewModelBase
     [RelayCommand]
     private void Close()
     {
+        SaveCurrentProgress();
+        _currentResourceId = null;
         _fileSource?.Dispose();
         _fileSource = null;
         ClearBitmaps();
         TotalPages = 0;
         CurrentPageIndex = 0;
         ComicName = string.Empty;
-        ReadingMode = ReadingMode.SinglePage;
         StatusText = "就绪";
     }
 }

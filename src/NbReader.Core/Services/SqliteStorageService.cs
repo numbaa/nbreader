@@ -333,7 +333,11 @@ public class SqliteStorageService : IStorageService, IDisposable
 
     public List<ComicResource> GetLibrary(LibraryQuery query)
     {
-        var sql = "SELECT r.* FROM comic_resources r WHERE r.is_bookmarked = 1";
+        var sql = @"SELECT r.*, 
+            CAST(COALESCE(rp.current_page, 0) AS REAL) / NULLIF(r.page_count, 0) * 100.0 AS progress_percent
+            FROM comic_resources r
+            LEFT JOIN reading_progress rp ON rp.resource_id = r.id
+            WHERE r.is_bookmarked = 1";
 
         // 分类筛选
         if (query.CategoryId.HasValue)
@@ -411,9 +415,12 @@ public class SqliteStorageService : IStorageService, IDisposable
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = @"
-            SELECT * FROM comic_resources
-            WHERE is_bookmarked = 1 AND title LIKE @search
-            ORDER BY added_date DESC
+            SELECT r.*,
+                CAST(COALESCE(rp.current_page, 0) AS REAL) / NULLIF(r.page_count, 0) * 100.0 AS progress_percent
+            FROM comic_resources r
+            LEFT JOIN reading_progress rp ON rp.resource_id = r.id
+            WHERE r.is_bookmarked = 1 AND r.title LIKE @search
+            ORDER BY r.added_date DESC
             LIMIT @limit;";
         cmd.Parameters.AddWithValue("@search", $"%{searchText}%");
         cmd.Parameters.AddWithValue("@limit", limit);
@@ -922,7 +929,7 @@ public class SqliteStorageService : IStorageService, IDisposable
     /// </summary>
     private static ComicResource ReadResource(SqliteDataReader reader)
     {
-        return new ComicResource
+        var resource = new ComicResource
         {
             Id = reader.GetInt32(0),
             WorkId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
@@ -944,6 +951,12 @@ public class SqliteStorageService : IStorageService, IDisposable
             ChapterNumber = reader.IsDBNull(17) ? null : reader.GetInt32(17),
             FileHash = reader.IsDBNull(18) ? null : reader.GetString(18)
         };
+
+        // 读取进度百分比（如果查询包含该列）
+        if (reader.FieldCount > 19 && !reader.IsDBNull(19))
+            resource.ProgressPercent = reader.GetDouble(19);
+
+        return resource;
     }
 
     // ═══════════════════════════════════════════════════════════

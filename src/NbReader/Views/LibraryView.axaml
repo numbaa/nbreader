@@ -100,7 +100,7 @@
                             <DataTemplate x:DataType="models:ComicResource">
                                 <Border Width="160" Height="230" Margin="8"
                                         Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                                        CornerRadius="6"
+                                        CornerRadius="6" ClipToBounds="True"
                                         DoubleTapped="OnComicCardDoubleTapped"
                                         PointerPressed="OnComicCardPointerPressed">
                                     <Border.ContextMenu>
@@ -120,7 +120,9 @@
                                         </Border>
                                         <TextBlock Grid.Row="1" Text="{Binding Title}"
                                                    FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
-                                        <ProgressBar Grid.Row="2" Value="0" Height="4" Margin="0,4,0,0" />
+                                        <ProgressBar Grid.Row="2" Value="{Binding ProgressPercent}" Maximum="100"
+                                                     Height="4" Margin="0,4,0,0"
+                                                     Foreground="#FF4A90D9" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -164,8 +166,10 @@
                                             <TextBlock Text="{Binding PageCount, StringFormat='📄 {0} 页'}"
                                                        FontSize="11" Foreground="Gray" Margin="0,2,0,0" />
                                         </StackPanel>
-                                        <ProgressBar Grid.Column="2" Value="0" Width="80" Height="4"
-                                                     VerticalAlignment="Center" />
+                                        <ProgressBar Grid.Column="2" Value="{Binding ProgressPercent}" Maximum="100"
+                                                     Width="80" Height="4"
+                                                     VerticalAlignment="Center"
+                                                     Foreground="#FF4A90D9" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>

@@ -114,6 +114,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void NavigateToLibrary()
     {
+        Reader.SaveCurrentProgress();
         SelectedNav = NavTarget.Library;
         Library.Refresh();
         CurrentView = Library;
@@ -125,6 +126,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void NavigateToHistory()
     {
+        Reader.SaveCurrentProgress();
         SelectedNav = NavTarget.History;
         History.Refresh();
         CurrentView = History;
@@ -160,8 +162,9 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedNav = NavTarget.Reader;
             CurrentView = Reader;
 
-            // 自动加入书架
-            RegisterInLibrary(path, fileSource.PageCount);
+            // 自动加入书架 + 恢复阅读进度
+            var resourceId = RegisterInLibrary(path, fileSource.PageCount);
+            await Reader.SetCurrentResourceAsync(resourceId);
         }
         catch (DirectoryNotFoundException)
         {
@@ -187,13 +190,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>
     /// 将打开的文件自动注册到书架（若尚未入库），并记录阅读历史。
+    /// 返回资源 ID。
     /// </summary>
-    private void RegisterInLibrary(string path, int pageCount)
+    private int RegisterInLibrary(string path, int pageCount)
     {
+        int resourceId = -1;
         try
         {
             var existing = _storage.GetResourceBySource("local", path);
-            int resourceId;
 
             if (existing is not null)
             {
@@ -231,10 +235,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
             // 记录阅读历史
             _storage.AddHistory(resourceId, 0);
+            return resourceId;
         }
         catch
         {
             // 入库失败不影响阅读
+            return -1;
         }
     }
 

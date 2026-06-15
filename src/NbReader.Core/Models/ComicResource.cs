@@ -61,4 +61,7 @@ public class ComicResource
 
     /// <summary>文件指纹（CBZ/CBR: SHA256 前 1MB；文件夹: 元数据哈希；在线未下载: null）</summary>
     public string? FileHash { get; set; }
+
+    /// <summary>阅读进度百分比（0-100，由查询填充，不持久化到此表）</summary>
+    public double ProgressPercent { get; set; }
 }
